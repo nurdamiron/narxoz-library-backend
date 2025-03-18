@@ -2,52 +2,35 @@ const express = require('express');
 const router = express.Router();
 const borrowController = require('../../controllers/borrowController');
 const { protect, authorize } = require('../../middleware/auth');
-const { validateBorrow, validateReturn, validateExtend } = require('../../middleware/validators/borrowValidator');
 
-// @route   POST /api/borrow/books/:id
-// @desc    Выдача книги пользователю
-// @access  Private
-router.post('/books/:id', protect, validateBorrow, borrowController.borrowBook);
+// Все маршруты требуют аутентификации
+router.use(protect);
 
-// @route   POST /api/borrow/:id/return
-// @desc    Возврат книги
-// @access  Private
-router.post('/:id/return', protect, validateReturn, borrowController.returnBook);
+// Получение активных выдач пользователя
+router.get('/my', borrowController.getUserBorrows);
 
-// @route   POST /api/borrow/:id/extend
-// @desc    Продление срока выдачи
-// @access  Private
-router.post('/:id/extend', protect, validateExtend, borrowController.extendBorrow);
+// Получение истории выдач пользователя
+router.get('/history', borrowController.getUserBorrowHistory);
 
-// @route   GET /api/borrow/my
-// @desc    Получение активных выдач пользователя
-// @access  Private
-router.get('/my', protect, borrowController.getUserBorrows);
+// Выдача книги пользователю
+router.post('/books/:id', borrowController.borrowBook);
 
-// @route   GET /api/borrow/history
-// @desc    Получение истории выдач пользователя
-// @access  Private
-router.get('/history', protect, borrowController.getUserBorrowHistory);
+// Возврат книги
+router.post('/:id/return', borrowController.returnBook);
 
-// @route   GET /api/borrow
-// @desc    Получение всех выдач (для администратора/библиотекаря)
-// @access  Private (только admin, librarian)
-router.get(
-  '/',
-  protect,
-  authorize('admin', 'librarian'),
-  borrowController.getAllBorrows
-);
+// Продление срока выдачи
+router.post('/:id/extend', borrowController.extendBorrow);
 
-// @route   GET /api/borrow/overdue
-// @desc    Получение просроченных выдач
-// @access  Private (только admin, librarian)
-router.get(
-  '/overdue',
-  protect,
-  authorize('admin', 'librarian'),
-  borrowController.getOverdueBooks
-);
+// Маршруты ниже доступны только для администраторов и библиотекарей
+const adminMiddleware = [protect, authorize('admin', 'librarian')];
 
-// Экспорт маршрутов
+// Получение всех выдач
+router.get('/', adminMiddleware, borrowController.getAllBorrows);
+
+// Получение просроченных выдач
+router.get('/overdue', adminMiddleware, borrowController.getOverdueBooks);
+
+// Получение статистики по выдачам
+router.get('/stats', adminMiddleware, borrowController.getBorrowStatistics);
+
 module.exports = router;

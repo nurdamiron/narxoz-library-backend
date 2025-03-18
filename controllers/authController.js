@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 
 // Генерация JWT токена
@@ -11,10 +11,21 @@ const generateToken = (user) => {
   );
 };
 
-// Регистрация нового пользователя
+/**
+ * Регистрация нового пользователя
+ * @route POST /api/auth/register
+ */
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, faculty, student_id, specialization, phone } = req.body;
+    const { name, email, password, faculty, student_id, specialization } = req.body;
+
+    // Проверка обязательных полей
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Имя, email и пароль обязательны'
+      });
+    }
 
     // Проверка, существует ли пользователь с таким email
     const existingUser = await User.findOne({ where: { email } });
@@ -25,7 +36,7 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Создание нового пользователя
+    // Создание пользователя
     const user = await User.create({
       name,
       email,
@@ -33,23 +44,19 @@ exports.register = async (req, res, next) => {
       faculty,
       student_id,
       specialization,
-      phone,
-      role: 'student' // По умолчанию роль - студент
+      role: 'student' // По умолчанию - студент
     });
 
-    // Создание токена
+    // Генерация токена
     const token = generateToken(user);
+
+    // Отправка ответа с данными пользователя (без пароля)
+    const { password: _, ...userData } = user.toJSON();
 
     res.status(201).json({
       success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        faculty: user.faculty,
-        role: user.role
-      },
-      token
+      token,
+      data: userData
     });
   } catch (error) {
     logger.error('Ошибка при регистрации пользователя:', error);
@@ -57,16 +64,19 @@ exports.register = async (req, res, next) => {
   }
 };
 
-// Вход в систему
+/**
+ * Вход в систему
+ * @route POST /api/auth/login
+ */
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Проверка наличия email и пароля
+    // Проверка обязательных полей
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Пожалуйста, укажите email и пароль'
+        message: 'Email и пароль обязательны'
       });
     }
 
@@ -88,19 +98,16 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Создание токена
+    // Генерация токена
     const token = generateToken(user);
+
+    // Отправка ответа с данными пользователя (без пароля)
+    const { password: _, ...userData } = user.toJSON();
 
     res.json({
       success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        faculty: user.faculty
-      },
-      token
+      token,
+      data: userData
     });
   } catch (error) {
     logger.error('Ошибка при входе пользователя:', error);
@@ -108,32 +115,10 @@ exports.login = async (req, res, next) => {
   }
 };
 
-// Обновление токена
-exports.refreshToken = async (req, res, next) => {
-  try {
-    // Пользователь уже аутентифицирован через middleware
-    const user = await User.findByPk(req.user.id);
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Пользователь не найден'
-      });
-    }
-    
-    const token = generateToken(user);
-
-    res.json({
-      success: true,
-      token
-    });
-  } catch (error) {
-    logger.error('Ошибка при обновлении токена:', error);
-    next(error);
-  }
-};
-
-// Получение информации о текущем пользователе
+/**
+ * Получение информации о текущем пользователе
+ * @route GET /api/auth/me
+ */
 exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.user.id, {
@@ -152,15 +137,50 @@ exports.getMe = async (req, res, next) => {
       data: user
     });
   } catch (error) {
-    logger.error('Ошибка при получении профиля пользователя:', error);
+    logger.error('Ошибка при получении данных пользователя:', error);
     next(error);
   }
 };
 
-// Выход из системы (только для логирования, так как JWT хранится на клиенте)
+/**
+ * Выход из системы
+ * @route POST /api/auth/logout
+ * @note JWT хранится клиентом, поэтому сервер не может "удалить" токен
+ */
 exports.logout = (req, res) => {
   res.json({
     success: true,
-    message: 'Выход успешно выполнен'
+    message: 'Выход выполнен успешно'
   });
 };
+
+/**
+ * Обновление токена
+ * @route POST /api/auth/refresh-token
+ */
+exports.refreshToken = async (req, res, next) => {
+  try {
+    // Пользователь уже аутентифицирован через middleware
+    const user = await User.findByPk(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Пользователь не найден'
+      });
+    }
+
+    // Генерация нового токена
+    const token = generateToken(user);
+
+    res.json({
+      success: true,
+      token
+    });
+  } catch (error) {
+    logger.error('Ошибка при обновлении токена:', error);
+    next(error);
+  }
+};
+
+module.exports = exports;
