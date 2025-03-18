@@ -1,0 +1,57 @@
+# Зависимости
+node_modules/
+package-lock.json
+yarn.lock
+
+# Логи
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Переменные окружения
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Загруженные файлы
+uploads/*
+!uploads/README.md
+!uploads/*/
+uploads/*/*
+!uploads/*/.gitkeep
+!uploads/*/README.md
+
+# Кеш и временные файлы
+.cache/
+.temp/
+.tmp/
+temp/
+tmp/
+
+# Сборка
+dist/
+build/
+out/
+
+# Покрытие кода тестами
+coverage/
+
+# IDE и редакторы
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-*
+.DS_Store
+Thumbs.db
+
+# Данные для разработки
+dev-data/
+
+# Конфигурационные файлы
+config.js.bak
+config.*.js.bak
