@@ -1,3 +1,4 @@
+// controllers/borrowController.js
 const { Op } = require('sequelize');
 const ErrorResponse = require('../utils/errorResponse');
 const db = require('../models');
@@ -8,29 +9,35 @@ const Category = db.Category;
 const Notification = db.Notification;
 
 /**
- * @desc    Borrow a book
+ * @desc    Кітапты қарызға алу
  * @route   POST /api/borrows
  * @access  Private
+ * 
+ * @description Бұл функция пайдаланушының кітапты қарызға алу процесін басқарады.
+ * Кітаптың қолжетімділігін тексереді, қарызға алу жазбасын жасайды және 
+ * кітаптың қолжетімді даналар санын жаңартады.
  */
 exports.borrowBook = async (req, res, next) => {
   try {
+    // Сұраныс денесінен кітап идентификаторын алу
     const { bookId } = req.body;
 
-    // Get the book
+    // Кітапты іздеу
     const book = await Book.findByPk(bookId);
 
+    // Кітап табылмаса қате қайтару
     if (!book) {
-      return next(new ErrorResponse(`Book not found with id of ${bookId}`, 404));
+      return next(new ErrorResponse(`${bookId} ID-мен кітап табылмады`, 404));
     }
 
-    // Check if the book is available
+    // Кітаптың қолжетімді екенін тексеру
     if (book.availableCopies <= 0) {
       return next(
-        new ErrorResponse('This book is currently not available for borrowing', 400)
+        new ErrorResponse('Бұл кітап қазіргі уақытта қарызға алу үшін қолжетімді емес', 400)
       );
     }
 
-    // Check if user already has an active borrow for this book
+    // Пайдаланушының бұл кітапты бұрыннан қарызға алғанын тексеру
     const existingBorrow = await Borrow.findOne({
       where: {
         bookId,
@@ -39,25 +46,26 @@ exports.borrowBook = async (req, res, next) => {
       },
     });
 
+    // Егер пайдаланушы бұл кітапты әлдеқашан қарызға алып, әлі қайтармаған болса
     if (existingBorrow) {
       return next(
         new ErrorResponse(
-          'You have already borrowed this book and not returned it yet',
+          'Сіз бұл кітапты әлдеқашан қарызға алдыңыз және әлі қайтармадыңыз',
           400
         )
       );
     }
 
-    // Calculate due date (default: 14 days or as specified in the book)
-    const borrowDuration = book.borrowDuration || 14; // days
+    // Қайтару мерзімін есептеу (әдепкі: 14 күн немесе кітапта көрсетілгендей)
+    const borrowDuration = book.borrowDuration || 14; // күндер
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + borrowDuration);
 
-    // Start transaction
+    // Транзакцияны бастау
     const transaction = await db.sequelize.transaction();
 
     try {
-      // Create borrow record
+      // Қарызға алу жазбасын жасау
       const borrow = await Borrow.create(
         {
           bookId,
@@ -68,7 +76,7 @@ exports.borrowBook = async (req, res, next) => {
         { transaction }
       );
 
-      // Decrease available copies
+      // Қолжетімді даналар санын азайту
       await book.update(
         {
           availableCopies: book.availableCopies - 1,
@@ -76,7 +84,7 @@ exports.borrowBook = async (req, res, next) => {
         { transaction }
       );
 
-      // Create a notification for the user
+      // Пайдаланушы үшін хабарландыру жасау
       await Notification.create(
         {
           userId: req.user.id,
@@ -89,10 +97,10 @@ exports.borrowBook = async (req, res, next) => {
         { transaction }
       );
 
-      // Commit transaction
+      // Транзакцияны аяқтау
       await transaction.commit();
 
-      // Return borrow with book and user details
+      // Кітап және пайдаланушы мәліметтерімен бірге қарызға алуды қайтару
       const borrowWithDetails = await Borrow.findByPk(borrow.id, {
         include: [
           {
@@ -115,7 +123,7 @@ exports.borrowBook = async (req, res, next) => {
         data: borrowWithDetails,
       });
     } catch (err) {
-      // Rollback transaction on error
+      // Қате болған жағдайда транзакцияны қайтару
       await transaction.rollback();
       throw err;
     }
@@ -125,12 +133,17 @@ exports.borrowBook = async (req, res, next) => {
 };
 
 /**
- * @desc    Return a borrowed book
+ * @desc    Қарызға алынған кітапты қайтару
  * @route   PUT /api/borrows/:id/return
  * @access  Private
+ * 
+ * @description Бұл функция кітапты қайтару процесін басқарады. Ол қарызға алу мәртебесін
+ * жаңартады, кітаптың қолжетімді даналар санын арттырады және пайдаланушыға 
+ * хабарландыру жібереді.
  */
 exports.returnBook = async (req, res, next) => {
   try {
+    // Қарызға алу жазбасын іздеу
     let borrow = await Borrow.findByPk(req.params.id, {
       include: [
         {
@@ -141,29 +154,30 @@ exports.returnBook = async (req, res, next) => {
       ],
     });
 
+    // Қарызға алу жазбасы табылмаса қате қайтару
     if (!borrow) {
       return next(
-        new ErrorResponse(`Borrow record not found with id of ${req.params.id}`, 404)
+        new ErrorResponse(`${req.params.id} ID-мен қарызға алу жазбасы табылмады`, 404)
       );
     }
 
-    // Make sure the user owns this borrow record or is an admin/librarian
+    // Пайдаланушы осы қарызға алу жазбасының иесі немесе әкімші/кітапханашы екенін тексеру
     if (borrow.userId !== req.user.id && 
         req.user.role !== 'admin' && 
         req.user.role !== 'librarian') {
-      return next(new ErrorResponse('Not authorized to return this book', 401));
+      return next(new ErrorResponse('Бұл кітапты қайтаруға рұқсатыңыз жоқ', 401));
     }
 
-    // Check if book is already returned
+    // Кітаптың әлдеқашан қайтарылғанын тексеру
     if (borrow.status === 'returned') {
-      return next(new ErrorResponse('This book has already been returned', 400));
+      return next(new ErrorResponse('Бұл кітап әлдеқашан қайтарылған', 400));
     }
 
-    // Start transaction
+    // Транзакцияны бастау
     const transaction = await db.sequelize.transaction();
 
     try {
-      // Update borrow record
+      // Қарызға алу жазбасын жаңарту
       await borrow.update(
         {
           status: 'returned',
@@ -172,7 +186,7 @@ exports.returnBook = async (req, res, next) => {
         { transaction }
       );
 
-      // Increase available copies of the book
+      // Кітаптың қолжетімді даналар санын арттыру
       const book = await Book.findByPk(borrow.bookId, { transaction });
       await book.update(
         {
@@ -181,7 +195,7 @@ exports.returnBook = async (req, res, next) => {
         { transaction }
       );
 
-      // Create a notification for the user
+      // Пайдаланушы үшін хабарландыру жасау
       await Notification.create(
         {
           userId: borrow.userId,
@@ -194,10 +208,10 @@ exports.returnBook = async (req, res, next) => {
         { transaction }
       );
 
-      // Commit transaction
+      // Транзакцияны аяқтау
       await transaction.commit();
 
-      // Get updated borrow record with details
+      // Жаңартылған қарызға алу жазбасын мәліметтермен бірге алу
       borrow = await Borrow.findByPk(req.params.id, {
         include: [
           {
@@ -213,7 +227,7 @@ exports.returnBook = async (req, res, next) => {
         data: borrow,
       });
     } catch (err) {
-      // Rollback transaction on error
+      // Қате болған жағдайда транзакцияны қайтару
       await transaction.rollback();
       throw err;
     }
@@ -223,28 +237,32 @@ exports.returnBook = async (req, res, next) => {
 };
 
 /**
- * @desc    Get current user's borrow history
+ * @desc    Ағымдағы пайдаланушының қарызға алу тарихын алу
  * @route   GET /api/borrows
  * @access  Private
+ * 
+ * @description Бұл функция сұраныс жіберген пайдаланушының қарызға алу тарихын
+ * қайтарады. Мәртебе және беттеу бойынша сүзуді қолдайды.
  */
 exports.getUserBorrows = async (req, res, next) => {
   try {
-    // Get status filter from query params
+    // Сұраныс параметрлерінен мәртебе сүзгісін алу
     const { status } = req.query;
 
-    // Build query
+    // Сұраныс шартын құру
     const where = { userId: req.user.id };
 
-    // Filter by status if provided
+    // Егер берілген болса, мәртебе бойынша сүзу
     if (status && ['active', 'returned', 'overdue'].includes(status)) {
       where.status = status;
     }
 
-    // Pagination
+    // Беттеу
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const offset = (page - 1) * limit;
 
+    // Беттеумен бірге қарызға алуларды іздеу
     const { count, rows: borrows } = await Borrow.findAndCountAll({
       where,
       include: [
@@ -266,7 +284,7 @@ exports.getUserBorrows = async (req, res, next) => {
       offset,
     });
 
-    // Pagination result
+    // Беттеу нәтижесі
     const pagination = {};
 
     if (offset + borrows.length < count) {
@@ -297,34 +315,37 @@ exports.getUserBorrows = async (req, res, next) => {
 };
 
 /**
- * @desc    Get all borrows (admin or librarian only)
+ * @desc    Барлық қарызға алуларды алу (тек әкімші немесе кітапханашы үшін)
  * @route   GET /api/borrows/all
  * @access  Private/Admin/Librarian
+ * 
+ * @description Бұл функция жүйедегі барлық қарызға алуларды іздейді және қайтарады.
+ * Сүзу және іздеу опцияларын қолдайды.
  */
 exports.getAllBorrows = async (req, res, next) => {
   try {
-    // Filter params
+    // Сүзу параметрлері
     const { status, userId, bookId, startDate, endDate, overdue } = req.query;
 
-    // Build query
+    // Сұраныс шартын құру
     const where = {};
 
-    // Filter by status
+    // Мәртебе бойынша сүзу
     if (status && ['active', 'returned', 'overdue'].includes(status)) {
       where.status = status;
     }
 
-    // Filter by user ID
+    // Пайдаланушы ID бойынша сүзу
     if (userId) {
       where.userId = userId;
     }
 
-    // Filter by book ID
+    // Кітап ID бойынша сүзу
     if (bookId) {
       where.bookId = bookId;
     }
 
-    // Filter by date range
+    // Күн аралығы бойынша сүзу
     if (startDate || endDate) {
       where.borrowDate = {};
 
@@ -337,17 +358,18 @@ exports.getAllBorrows = async (req, res, next) => {
       }
     }
 
-    // Filter overdue borrows
+    // Мерзімі өткен қарызға алуларды сүзу
     if (overdue === 'true') {
       where.status = 'active';
       where.dueDate = { [Op.lt]: new Date() };
     }
 
-    // Pagination
+    // Беттеу
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const offset = (page - 1) * limit;
 
+    // Беттеумен бірге қарызға алуларды іздеу
     const { count, rows: borrows } = await Borrow.findAndCountAll({
       where,
       include: [
@@ -367,7 +389,7 @@ exports.getAllBorrows = async (req, res, next) => {
       offset,
     });
 
-    // Pagination result
+    // Беттеу нәтижесі
     const pagination = {};
 
     if (offset + borrows.length < count) {
@@ -398,12 +420,16 @@ exports.getAllBorrows = async (req, res, next) => {
 };
 
 /**
- * @desc    Get a single borrow record
+ * @desc    Жеке қарызға алу жазбасын алу
  * @route   GET /api/borrows/:id
  * @access  Private
+ * 
+ * @description Бұл функция жеке қарызға алу жазбасының мәліметтерін қайтарады.
+ * Тек қарызға алу иесі, әкімші немесе кітапханашы кіре алады.
  */
 exports.getBorrow = async (req, res, next) => {
   try {
+    // Қарызға алу жазбасын іздеу
     const borrow = await Borrow.findByPk(req.params.id, {
       include: [
         {
@@ -426,17 +452,18 @@ exports.getBorrow = async (req, res, next) => {
       ],
     });
 
+    // Қарызға алу жазбасы табылмаса қате қайтару
     if (!borrow) {
       return next(
-        new ErrorResponse(`Borrow record not found with id of ${req.params.id}`, 404)
+        new ErrorResponse(`${req.params.id} ID-мен қарызға алу жазбасы табылмады`, 404)
       );
     }
 
-    // Only allow the owner, admin, or librarian to view the record
+    // Тек иесіне, әкімшіге немесе кітапханашыға рұқсат ету
     if (borrow.userId !== req.user.id && 
         req.user.role !== 'admin' && 
         req.user.role !== 'librarian') {
-      return next(new ErrorResponse('Not authorized to view this borrow record', 401));
+      return next(new ErrorResponse('Бұл қарызға алу жазбасын көруге рұқсатыңыз жоқ', 401));
     }
 
     res.status(200).json({
@@ -449,15 +476,19 @@ exports.getBorrow = async (req, res, next) => {
 };
 
 /**
- * @desc    Update borrow record (admin or librarian only)
+ * @desc    Қарызға алу жазбасын жаңарту (тек әкімші немесе кітапханашы үшін)
  * @route   PUT /api/borrows/:id
  * @access  Private/Admin/Librarian
+ * 
+ * @description Бұл функция қарызға алу жазбасын жаңартуға мүмкіндік береді.
+ * Әкімшілер немесе кітапханашылар мәртебесін, қайтару мерзімін және ескертпелерді жаңарта алады.
  */
 exports.updateBorrow = async (req, res, next) => {
   try {
-    // Only allow updating certain fields
+    // Тек белгілі өрістерді жаңартуға рұқсат ету
     const { status, dueDate, notes } = req.body;
 
+    // Қарызға алу жазбасын іздеу
     const borrow = await Borrow.findByPk(req.params.id, {
       include: [
         {
@@ -468,35 +499,39 @@ exports.updateBorrow = async (req, res, next) => {
       ],
     });
 
+    // Қарызға алу жазбасы табылмаса қате қайтару
     if (!borrow) {
       return next(
-        new ErrorResponse(`Borrow record not found with id of ${req.params.id}`, 404)
+        new ErrorResponse(`${req.params.id} ID-мен қарызға алу жазбасы табылмады`, 404)
       );
     }
 
-    // Start transaction
+    // Транзакцияны бастау
     const transaction = await db.sequelize.transaction();
 
     try {
       const fieldsToUpdate = {};
 
+      // Егер мәртебе берілген және рұқсат етілген болса, оны қосу
       if (status && ['active', 'returned', 'overdue'].includes(status)) {
         fieldsToUpdate.status = status;
       }
 
+      // Егер қайтару мерзімі берілген болса, оны қосу
       if (dueDate) {
         fieldsToUpdate.dueDate = dueDate;
       }
 
+      // Егер ескертпелер берілген болса, оларды қосу
       if (notes !== undefined) {
         fieldsToUpdate.notes = notes;
       }
 
-      // Set returnDate if status is changed to 'returned'
+      // Егер мәртебе 'returned' болса және бұрын 'returned' болмаса, қайтару күнін орнату
       if (status === 'returned' && borrow.status !== 'returned') {
         fieldsToUpdate.returnDate = new Date();
 
-        // If book is being returned, increase available copies
+        // Егер кітап қайтарылса, қолжетімді даналар санын арттыру
         const book = await Book.findByPk(borrow.bookId, { transaction });
         await book.update(
           {
@@ -505,7 +540,7 @@ exports.updateBorrow = async (req, res, next) => {
           { transaction }
         );
 
-        // Create a notification for the user
+        // Пайдаланушы үшін хабарландыру жасау
         await Notification.create(
           {
             userId: borrow.userId,
@@ -519,13 +554,13 @@ exports.updateBorrow = async (req, res, next) => {
         );
       }
 
-      // Update borrow record
+      // Қарызға алу жазбасын жаңарту
       await borrow.update(fieldsToUpdate, { transaction });
 
-      // Commit transaction
+      // Транзакцияны аяқтау
       await transaction.commit();
 
-      // Get updated borrow with details
+      // Мәліметтермен бірге жаңартылған қарызға алуды алу
       const updatedBorrow = await Borrow.findByPk(req.params.id, {
         include: [
           {
@@ -546,7 +581,7 @@ exports.updateBorrow = async (req, res, next) => {
         data: updatedBorrow,
       });
     } catch (err) {
-      // Rollback transaction on error
+      // Қате болған жағдайда транзакцияны қайтару
       await transaction.rollback();
       throw err;
     }
@@ -556,13 +591,16 @@ exports.updateBorrow = async (req, res, next) => {
 };
 
 /**
- * @desc    Get overdue borrows and send notifications
+ * @desc    Мерзімі өткен қарызға алуларды тексеру және хабарландырулар жіберу
  * @route   GET /api/borrows/check-overdue
  * @access  Private/Admin/Librarian
+ * 
+ * @description Бұл функция мерзімі өткен қарызға алуларды іздейді, олардың мәртебесін
+ * 'overdue' етіп жаңартады және пайдаланушыларға хабарландырулар жібереді.
  */
 exports.checkOverdueBorrows = async (req, res, next) => {
   try {
-    // Find active borrows with due dates in the past
+    // Қайтару мерзімі өткен белсенді қарызға алуларды табу
     const overdueBorrows = await Borrow.findAll({
       where: {
         status: 'active',
@@ -582,17 +620,17 @@ exports.checkOverdueBorrows = async (req, res, next) => {
       ],
     });
 
-    // Update status to 'overdue' and create notifications
+    // Мәртебені 'overdue' етіп жаңарту және хабарландырулар жасау
     let updatedCount = 0;
 
     for (const borrow of overdueBorrows) {
-      // Start transaction for each borrow
+      // Әр қарызға алу үшін транзакцияны бастау
       const transaction = await db.sequelize.transaction();
 
       try {
-        // Only update if not already marked as overdue
+        // Тек әлі 'overdue' етіп белгіленбеген болса ғана жаңарту
         if (borrow.status !== 'overdue') {
-          // Update status
+          // Мәртебені жаңарту
           await borrow.update(
             {
               status: 'overdue',
@@ -600,7 +638,7 @@ exports.checkOverdueBorrows = async (req, res, next) => {
             { transaction }
           );
 
-          // Create notification
+          // Хабарландыру жасау
           await Notification.create(
             {
               userId: borrow.userId,
@@ -613,15 +651,15 @@ exports.checkOverdueBorrows = async (req, res, next) => {
             { transaction }
           );
 
-          // Commit transaction
+          // Транзакцияны аяқтау
           await transaction.commit();
           updatedCount++;
         } else {
-          // No updates needed, just commit
+          // Жаңартулар қажет емес, тек аяқтау
           await transaction.commit();
         }
       } catch (err) {
-        // Rollback transaction on error
+        // Қате болған жағдайда транзакцияны қайтару
         await transaction.rollback();
         throw err;
       }
@@ -639,18 +677,21 @@ exports.checkOverdueBorrows = async (req, res, next) => {
 };
 
 /**
- * @desc    Get books that will be due soon and send reminders
+ * @desc    Жақында қайтарылу керек кітаптарды алу және еске салу хабарландыруларын жіберу
  * @route   GET /api/borrows/send-reminders
  * @access  Private/Admin/Librarian
+ * 
+ * @description Бұл функция жақын арада қайтарылуы керек кітаптарды іздейді және
+ * пайдаланушыларға еске салу хабарландыруларын жібереді.
  */
 exports.sendDueReminders = async (req, res, next) => {
   try {
-    // Calculate date for 3 days from now
+    // Қазіргі уақыттан 3 күн кейінгі күнді есептеу
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
     const today = new Date();
 
-    // Find active borrows with due dates coming up in the next 3 days
+    // Келесі 3 күн ішінде қайтарылуы керек белсенді қарызға алуларды табу
     const upcomingDueBorrows = await Borrow.findAll({
       where: {
         status: 'active',
@@ -673,27 +714,27 @@ exports.sendDueReminders = async (req, res, next) => {
       ],
     });
 
-    // Create reminder notifications
+    // Еске салу хабарландыруларын жасау
     let notificationsCreated = 0;
 
     for (const borrow of upcomingDueBorrows) {
-      // Check if a reminder notification already exists for this borrow
+      // Бұл қарызға алу үшін еске салу хабарландыруы бұрыннан бар-жоғын тексеру
       const existingNotification = await Notification.findOne({
         where: {
           userId: borrow.userId,
           relatedModel: 'Borrow',
           relatedId: borrow.id,
           type: 'return',
-          // Only look for recent notifications (last 24 hours)
+          // Тек соңғы 24 сағат ішіндегі хабарландыруларды іздеу
           createdAt: {
             [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000),
           },
         },
       });
 
-      // Only create a notification if one doesn't already exist
+      // Хабарландыру әлі жоқ болса ғана жасау
       if (!existingNotification) {
-        // Create new notification
+        // Жаңа хабарландыру жасау
         await Notification.create({
           userId: borrow.userId,
           title: 'Напоминание о сроке возврата книги',
@@ -719,13 +760,17 @@ exports.sendDueReminders = async (req, res, next) => {
 };
 
 /**
- * @desc    Get borrow statistics
+ * @desc    Қарызға алу статистикасын алу
  * @route   GET /api/borrows/stats
  * @access  Private/Admin
+ * 
+ * @description Бұл функция жүйедегі қарызға алулар туралы жалпы статистиканы қайтарады.
+ * Әртүрлі мәртебелер бойынша қарызға алулар санын, ең көп қарызға алынған кітаптарды
+ * және ең белсенді пайдаланушыларды қамтиды.
  */
 exports.getBorrowStats = async (req, res, next) => {
   try {
-    // Get counts for different borrow statuses
+    // Әртүрлі қарызға алу мәртебелері бойынша сандарды алу
     const [activeBorrows, returnedBorrows, overdueBorrows, totalBorrows] = await Promise.all([
       Borrow.count({ where: { status: 'active' } }),
       Borrow.count({ where: { status: 'returned' } }),
@@ -733,7 +778,7 @@ exports.getBorrowStats = async (req, res, next) => {
       Borrow.count(),
     ]);
 
-    // Get most borrowed books
+    // Ең көп қарызға алынған кітаптар
     const mostBorrowedBooks = await Borrow.findAll({
       attributes: [
         'bookId',
@@ -751,7 +796,7 @@ exports.getBorrowStats = async (req, res, next) => {
       ],
     });
 
-    // Get most active borrowers
+    // Ең белсенді қарызға алушылар
     const mostActiveBorrowers = await Borrow.findAll({
       attributes: [
         'userId',
@@ -788,12 +833,16 @@ exports.getBorrowStats = async (req, res, next) => {
 };
 
 /**
- * @desc    Extend borrow period
+ * @desc    Қарызға алу мерзімін ұзарту
  * @route   PUT /api/borrows/:id/extend
  * @access  Private
+ * 
+ * @description Бұл функция пайдаланушыға қарызға алу мерзімін ұзартуға мүмкіндік береді.
+ * Тек белсенді және мерзімі өтпеген қарызға алуларды ұзартуға болады.
  */
 exports.extendBorrow = async (req, res, next) => {
   try {
+    // Қарызға алу жазбасын іздеу
     const borrow = await Borrow.findByPk(req.params.id, {
       include: [
         {
@@ -804,34 +853,35 @@ exports.extendBorrow = async (req, res, next) => {
       ],
     });
 
+    // Қарызға алу жазбасы табылмаса қате қайтару
     if (!borrow) {
       return next(
-        new ErrorResponse(`Borrow record not found with id of ${req.params.id}`, 404)
+        new ErrorResponse(`${req.params.id} ID-мен қарызға алу жазбасы табылмады`, 404)
       );
     }
 
-    // Only the borrower or admin/librarian can extend
+    // Тек қарызға алушы, әкімші немесе кітапханашы ұзарта алады
     if (borrow.userId !== req.user.id && 
         req.user.role !== 'admin' && 
         req.user.role !== 'librarian') {
-      return next(new ErrorResponse('Not authorized to extend this borrow', 401));
+      return next(new ErrorResponse('Бұл қарызға алуды ұзартуға рұқсатыңыз жоқ', 401));
     }
 
-    // Check if borrow is active
+    // Қарызға алу белсенді екенін тексеру
     if (borrow.status !== 'active') {
       return next(
-        new ErrorResponse('Only active borrows can be extended', 400)
+        new ErrorResponse('Тек белсенді қарызға алуларды ұзартуға болады', 400)
       );
     }
 
-    // Check if borrow is already overdue
+    // Қарызға алу мерзімі өтіп кеткенін тексеру
     if (new Date() > borrow.dueDate) {
       return next(
-        new ErrorResponse('Overdue borrows cannot be extended', 400)
+        new ErrorResponse('Мерзімі өткен қарызға алуларды ұзартуға болмайды', 400)
       );
     }
 
-    // Calculate new due date (add 7 days or book's borrowDuration/2)
+    // Жаңа қайтару мерзімін есептеу (7 күн немесе кітаптың borrowDuration/2)
     const extensionDays = borrow.book.borrowDuration 
       ? Math.ceil(borrow.book.borrowDuration / 2) 
       : 7;
@@ -839,11 +889,11 @@ exports.extendBorrow = async (req, res, next) => {
     const newDueDate = new Date(borrow.dueDate);
     newDueDate.setDate(newDueDate.getDate() + extensionDays);
 
-    // Start transaction
+    // Транзакцияны бастау
     const transaction = await db.sequelize.transaction();
 
     try {
-      // Update due date
+      // Қайтару мерзімін жаңарту
       await borrow.update(
         {
           dueDate: newDueDate,
@@ -851,7 +901,7 @@ exports.extendBorrow = async (req, res, next) => {
         { transaction }
       );
 
-      // Create notification
+      // Хабарландыру жасау
       await Notification.create(
         {
           userId: borrow.userId,
@@ -864,10 +914,10 @@ exports.extendBorrow = async (req, res, next) => {
         { transaction }
       );
 
-      // Commit transaction
+      // Транзакцияны аяқтау
       await transaction.commit();
 
-      // Get updated borrow
+      // Жаңартылған қарызға алуды алу
       const updatedBorrow = await Borrow.findByPk(req.params.id, {
         include: [
           {
@@ -883,7 +933,7 @@ exports.extendBorrow = async (req, res, next) => {
         data: updatedBorrow,
       });
     } catch (err) {
-      // Rollback transaction on error
+      // Қате болған жағдайда транзакцияны қайтару
       await transaction.rollback();
       throw err;
     }
