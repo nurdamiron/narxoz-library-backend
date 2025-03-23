@@ -1,3 +1,4 @@
+// src/routes/authRoutes.js
 const express = require('express');
 const { body } = require('express-validator');
 const {
@@ -10,7 +11,9 @@ const {
   forgotPassword,
   resetPassword,
   registerAdmin,
-  refreshToken
+  refreshToken,
+  checkEmail,
+  checkStudentId
 } = require('../controllers/authController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -102,5 +105,10 @@ router.post(
   authorize('admin'),
   registerAdmin
 );
+
+router.post('/check-email', checkEmail);
+
+// Check if student ID exists
+router.post('/check-student-id', checkStudentId);
 
 module.exports = router;

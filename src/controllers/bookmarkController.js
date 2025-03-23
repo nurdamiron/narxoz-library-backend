@@ -6,12 +6,13 @@ const Book = db.Book;
 const Category = db.Category;
 
 /**
- * @desc    Get all bookmarks for current user
+ * @desc    Қолданушының барлық бетбелгілерін алу
  * @route   GET /api/bookmarks
  * @access  Private
  */
 exports.getBookmarks = async (req, res, next) => {
   try {
+    // Қолданушының барлық бетбелгілерін іздеу
     const bookmarks = await Bookmark.findAll({
       where: { userId: req.user.id },
       include: [
@@ -27,9 +28,10 @@ exports.getBookmarks = async (req, res, next) => {
           ],
         },
       ],
-      order: [['addedAt', 'DESC']],
+      order: [['addedAt', 'DESC']], // Жаңасынан ескісіне қарай сұрыптау
     });
 
+    // Сәтті жауап қайтару
     res.status(200).json({
       success: true,
       count: bookmarks.length,
@@ -41,7 +43,7 @@ exports.getBookmarks = async (req, res, next) => {
 };
 
 /**
- * @desc    Add a bookmark
+ * @desc    Жаңа бетбелгі қосу
  * @route   POST /api/bookmarks
  * @access  Private
  */
@@ -49,13 +51,13 @@ exports.addBookmark = async (req, res, next) => {
   try {
     const { bookId } = req.body;
 
-    // Check if book exists
+    // Кітаптың бар-жоғын тексеру
     const book = await Book.findByPk(bookId);
     if (!book) {
-      return next(new ErrorResponse(`Book not found with id of ${bookId}`, 404));
+      return next(new ErrorResponse(`${bookId} идентификаторы бар кітап табылмады`, 404));
     }
 
-    // Check if bookmark already exists
+    // Бетбелгінің бұрыннан бар-жоғын тексеру
     const existingBookmark = await Bookmark.findOne({
       where: {
         userId: req.user.id,
@@ -64,16 +66,16 @@ exports.addBookmark = async (req, res, next) => {
     });
 
     if (existingBookmark) {
-      return next(new ErrorResponse('You have already bookmarked this book', 400));
+      return next(new ErrorResponse('Сіз бұл кітапты әлдеқашан бетбелгіге қосқансыз', 400));
     }
 
-    // Create bookmark
+    // Жаңа бетбелгі құру
     const bookmark = await Bookmark.create({
       userId: req.user.id,
       bookId,
     });
 
-    // Return bookmark with book details
+    // Кітап мәліметтерімен бірге бетбелгіні қайтару
     const bookmarkWithBook = await Bookmark.findByPk(bookmark.id, {
       include: [
         {
@@ -100,27 +102,30 @@ exports.addBookmark = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete bookmark
+ * @desc    Бетбелгіні жою
  * @route   DELETE /api/bookmarks/:id
  * @access  Private
  */
 exports.deleteBookmark = async (req, res, next) => {
   try {
+    // Бетбелгіні ID бойынша іздеу
     const bookmark = await Bookmark.findByPk(req.params.id);
 
     if (!bookmark) {
       return next(
-        new ErrorResponse(`Bookmark not found with id of ${req.params.id}`, 404)
+        new ErrorResponse(`${req.params.id} идентификаторы бар бетбелгі табылмады`, 404)
       );
     }
 
-    // Make sure user owns the bookmark
+    // Қолданушы бетбелгі иесі немесе әкімші екенін тексеру
     if (bookmark.userId !== req.user.id && req.user.role !== 'admin') {
-      return next(new ErrorResponse('Not authorized to delete this bookmark', 401));
+      return next(new ErrorResponse('Бұл бетбелгіні жоюға рұқсатыңыз жоқ', 401));
     }
 
+    // Бетбелгіні жою
     await bookmark.destroy();
 
+    // Сәтті жауап қайтару
     res.status(200).json({
       success: true,
       data: {},
@@ -131,7 +136,7 @@ exports.deleteBookmark = async (req, res, next) => {
 };
 
 /**
- * @desc    Toggle bookmark (add if not exists, remove if exists)
+ * @desc    Бетбелгіні ауыстыру (жоқ болса қосу, бар болса жою)
  * @route   POST /api/bookmarks/toggle/:bookId
  * @access  Private
  */
@@ -139,13 +144,13 @@ exports.toggleBookmark = async (req, res, next) => {
   try {
     const bookId = req.params.bookId;
 
-    // Check if book exists
+    // Кітаптың бар-жоғын тексеру
     const book = await Book.findByPk(bookId);
     if (!book) {
-      return next(new ErrorResponse(`Book not found with id of ${bookId}`, 404));
+      return next(new ErrorResponse(`${bookId} идентификаторы бар кітап табылмады`, 404));
     }
 
-    // Check if bookmark already exists
+    // Бетбелгінің бұрыннан бар-жоғын тексеру
     const existingBookmark = await Bookmark.findOne({
       where: {
         userId: req.user.id,
@@ -157,18 +162,18 @@ exports.toggleBookmark = async (req, res, next) => {
     let status;
 
     if (existingBookmark) {
-      // Remove bookmark if it exists
+      // Бетбелгі бар болса, оны жою
       await existingBookmark.destroy();
       result = { bookmarked: false };
       status = 200;
     } else {
-      // Add bookmark if it doesn't exist
+      // Бетбелгі жоқ болса, оны қосу
       const bookmark = await Bookmark.create({
         userId: req.user.id,
         bookId,
       });
 
-      // Get bookmark with book details
+      // Кітап мәліметтерімен бірге бетбелгіні алу
       const bookmarkWithBook = await Bookmark.findByPk(bookmark.id, {
         include: [
           {
@@ -189,6 +194,7 @@ exports.toggleBookmark = async (req, res, next) => {
       status = 201;
     }
 
+    // Сәтті жауап қайтару
     res.status(status).json({
       success: true,
       data: result,
@@ -199,12 +205,13 @@ exports.toggleBookmark = async (req, res, next) => {
 };
 
 /**
- * @desc    Check if a book is bookmarked by the current user
+ * @desc    Кітаптың қолданушы үшін бетбелгіде бар-жоғын тексеру
  * @route   GET /api/bookmarks/check/:bookId
  * @access  Private
  */
 exports.checkBookmark = async (req, res, next) => {
   try {
+    // Кітаптың бетбелгіде бар-жоғын тексеру
     const bookmark = await Bookmark.findOne({
       where: {
         userId: req.user.id,
@@ -212,10 +219,11 @@ exports.checkBookmark = async (req, res, next) => {
       },
     });
 
+    // Жауап қайтару
     res.status(200).json({
       success: true,
       data: {
-        isBookmarked: !!bookmark,
+        isBookmarked: !!bookmark, // Boolean түріне айналдыру
         bookmark: bookmark || null,
       },
     });
@@ -225,18 +233,18 @@ exports.checkBookmark = async (req, res, next) => {
 };
 
 /**
- * @desc    Get all bookmarks (admin only)
+ * @desc    Барлық бетбелгілерді алу (тек әкімші үшін)
  * @route   GET /api/bookmarks/all
  * @access  Private/Admin
  */
 exports.getAllBookmarks = async (req, res, next) => {
   try {
-    // Pagination
+    // Беттеу параметрлері
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 25;
     const offset = (page - 1) * limit;
 
-    // Query options
+    // Сұраныс опциялары
     const queryOptions = {
       include: [
         {
@@ -255,7 +263,7 @@ exports.getAllBookmarks = async (req, res, next) => {
       offset,
     };
 
-    // Add filters if provided
+    // Егер сүзгілер берілген болса, оларды қосу
     if (req.query.userId) {
       queryOptions.where = {
         ...queryOptions.where,
@@ -270,10 +278,10 @@ exports.getAllBookmarks = async (req, res, next) => {
       };
     }
 
-    // Fetch bookmarks with pagination
+    // Беттеумен бетбелгілерді іздеу
     const { count, rows: bookmarks } = await Bookmark.findAndCountAll(queryOptions);
 
-    // Pagination result
+    // Беттеу нәтижесі
     const pagination = {};
 
     if (offset + bookmarks.length < count) {
@@ -290,6 +298,7 @@ exports.getAllBookmarks = async (req, res, next) => {
       };
     }
 
+    // Сәтті жауап қайтару
     res.status(200).json({
       success: true,
       count: bookmarks.length,
@@ -304,12 +313,13 @@ exports.getAllBookmarks = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete bookmark by book ID (for current user)
+ * @desc    Кітап ID бойынша бетбелгіні жою (қолданушы үшін)
  * @route   DELETE /api/bookmarks/book/:bookId
  * @access  Private
  */
 exports.deleteBookmarkByBookId = async (req, res, next) => {
   try {
+    // Кітап ID бойынша бетбелгіні іздеу
     const bookmark = await Bookmark.findOne({
       where: {
         userId: req.user.id,
@@ -319,12 +329,14 @@ exports.deleteBookmarkByBookId = async (req, res, next) => {
 
     if (!bookmark) {
       return next(
-        new ErrorResponse(`Bookmark not found for book ID ${req.params.bookId}`, 404)
+        new ErrorResponse(`${req.params.bookId} кітап ID-сі үшін бетбелгі табылмады`, 404)
       );
     }
 
+    // Бетбелгіні жою
     await bookmark.destroy();
 
+    // Сәтті жауап қайтару
     res.status(200).json({
       success: true,
       data: {},
@@ -335,7 +347,7 @@ exports.deleteBookmarkByBookId = async (req, res, next) => {
 };
 
 /**
- * @desc    Get most bookmarked books (admin only)
+ * @desc    Ең көп бетбелгіге қосылған кітаптарды алу (тек әкімші үшін)
  * @route   GET /api/bookmarks/trending
  * @access  Private/Admin
  */
@@ -343,7 +355,7 @@ exports.getTrendingBooks = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 5;
 
-    // Get books with most bookmarks
+    // Ең көп бетбелгіге қосылған кітаптарды алу
     const result = await Bookmark.findAll({
       attributes: [
         'bookId',
@@ -367,6 +379,7 @@ exports.getTrendingBooks = async (req, res, next) => {
       ],
     });
 
+    // Сәтті жауап қайтару
     res.status(200).json({
       success: true,
       count: result.length,

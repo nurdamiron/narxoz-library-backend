@@ -6,13 +6,13 @@ const db = require('../models');
 const User = db.User;
 
 /**
- * @desc    Register a user
+ * @desc    Пайдаланушыны тіркеу
  * @route   POST /api/auth/register
  * @access  Public
  */
 exports.register = async (req, res, next) => {
   try {
-    // Check for validation errors
+    // Валидация қателерін тексеру
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -23,7 +23,7 @@ exports.register = async (req, res, next) => {
 
     const { name, email, password, phone, faculty, specialization, studentId, year } = req.body;
 
-    // Create user
+    // Пайдаланушыны жасау
     const user = await User.create({
       name,
       email,
@@ -36,7 +36,7 @@ exports.register = async (req, res, next) => {
       role: 'user'
     });
 
-    // Create token
+    // Токен жасау
     sendTokenResponse(user, 201, res);
   } catch (err) {
     next(err);
@@ -44,7 +44,7 @@ exports.register = async (req, res, next) => {
 };
 
 /**
- * @desc    Login user
+ * @desc    Пайдаланушы кіру
  * @route   POST /api/auth/login
  * @access  Public
  */
@@ -52,26 +52,26 @@ exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Validate email & password
+    // Email және құпия сөзді тексеру
     if (!email || !password) {
-      return next(new ErrorResponse('Please provide an email and password', 400));
+      return next(new ErrorResponse('Email және құпия сөз енгізіңіз', 400));
     }
 
-    // Check for user
+    // Пайдаланушыны тексеру
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
-      return next(new ErrorResponse('Invalid credentials', 401));
+      return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
 
-    // Check if password matches
+    // Құпия сөздің сәйкестігін тексеру
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
-      return next(new ErrorResponse('Invalid credentials', 401));
+      return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
 
-    // Create token
+    // Токен жасау
     sendTokenResponse(user, 200, res);
   } catch (err) {
     next(err);
@@ -79,31 +79,31 @@ exports.login = async (req, res, next) => {
 };
 
 /**
- * @desc    Register an admin (only super admins can create admins)
+ * @desc    Әкімшіні тіркеу (тек супер әкімшілер әкімшілерді жасай алады)
  * @route   POST /api/auth/register-admin
  * @access  Private/Admin
  */
 exports.registerAdmin = async (req, res, next) => {
   try {
-    // Only admin can create other admins or librarians
+    // Тек әкімші басқа әкімшілерді немесе кітапханашыларды жасай алады
     if (req.user.role !== 'admin') {
-      return next(new ErrorResponse('Not authorized to create admin accounts', 403));
+      return next(new ErrorResponse('Әкімші тіркелгілерін жасауға рұқсатыңыз жоқ', 403));
     }
 
     const { name, email, password, role } = req.body;
 
-    // Ensure role is either admin or librarian
+    // Рөлдің әкімші немесе кітапханашы екенін тексеру
     if (role !== 'admin' && role !== 'librarian') {
-      return next(new ErrorResponse('Invalid role assignment', 400));
+      return next(new ErrorResponse('Жарамсыз рөл тағайындау', 400));
     }
 
-    // Create admin user
+    // Әкімші пайдаланушысын жасау
     const user = await User.create({
       name,
       email,
       password,
       role,
-      // If admin, we may not need these, but they're required fields
+      // Егер әкімші болса, бұлар қажет болмауы мүмкін, бірақ олар міндетті өрістер
       faculty: 'Administration',
       specialization: 'Library Management',
       studentId: 'ADMIN-' + Math.floor(1000 + Math.random() * 9000),
@@ -125,7 +125,7 @@ exports.registerAdmin = async (req, res, next) => {
 };
 
 /**
- * @desc    Log user out / clear cookie
+ * @desc    Пайдаланушы шығу / cookie тазалау
  * @route   GET /api/auth/logout
  * @access  Private
  */
@@ -146,7 +146,7 @@ exports.logout = async (req, res, next) => {
 };
 
 /**
- * @desc    Get current logged in user
+ * @desc    Ағымдағы кірген пайдаланушыны алу
  * @route   GET /api/auth/me
  * @access  Private
  */
@@ -166,7 +166,7 @@ exports.getMe = async (req, res, next) => {
 };
 
 /**
- * @desc    Update user details
+ * @desc    Пайдаланушы мәліметтерін жаңарту
  * @route   PUT /api/auth/updatedetails
  * @access  Private
  */
@@ -181,7 +181,7 @@ exports.updateDetails = async (req, res, next) => {
       year: req.body.year
     };
 
-    // Filter out undefined fields
+    // Анықталмаған өрістерді сүзу
     Object.keys(fieldsToUpdate).forEach(
       key => fieldsToUpdate[key] === undefined && delete fieldsToUpdate[key]
     );
@@ -189,13 +189,13 @@ exports.updateDetails = async (req, res, next) => {
     const user = await User.findByPk(req.user.id);
     
     if (!user) {
-      return next(new ErrorResponse('User not found', 404));
+      return next(new ErrorResponse('Пайдаланушы табылмады', 404));
     }
 
-    // Update user
+    // Пайдаланушыны жаңарту
     await user.update(fieldsToUpdate);
 
-    // Re-fetch user with updated details
+    // Жаңартылған мәліметтермен пайдаланушыны қайта алу
     const updatedUser = await User.findByPk(req.user.id, {
       attributes: { exclude: ['password'] }
     });
@@ -210,7 +210,7 @@ exports.updateDetails = async (req, res, next) => {
 };
 
 /**
- * @desc    Update password
+ * @desc    Құпия сөзді жаңарту
  * @route   PUT /api/auth/updatepassword
  * @access  Private
  */
@@ -218,13 +218,13 @@ exports.updatePassword = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.user.id);
 
-    // Check current password
+    // Ағымдағы құпия сөзді тексеру
     const isMatch = await user.matchPassword(req.body.currentPassword);
     if (!isMatch) {
-      return next(new ErrorResponse('Password is incorrect', 401));
+      return next(new ErrorResponse('Құпия сөз дұрыс емес', 401));
     }
 
-    // Update password
+    // Құпия сөзді жаңарту
     user.password = req.body.newPassword;
     await user.save();
 
@@ -235,7 +235,7 @@ exports.updatePassword = async (req, res, next) => {
 };
 
 /**
- * @desc    Forgot password
+ * @desc    Құпия сөзді ұмыту
  * @route   POST /api/auth/forgotpassword
  * @access  Public
  */
@@ -244,42 +244,42 @@ exports.forgotPassword = async (req, res, next) => {
     const user = await User.findOne({ where: { email: req.body.email } });
 
     if (!user) {
-      return next(new ErrorResponse('There is no user with that email', 404));
+      return next(new ErrorResponse('Бұндай email бар пайдаланушы жоқ', 404));
     }
 
-    // Get reset token
+    // Қалпына келтіру токенін алу
     const resetToken = crypto.randomBytes(20).toString('hex');
 
-    // Hash token and set to resetPasswordToken field
+    // Токенді хэштеу және resetPasswordToken өрісіне орнату
     const resetPasswordToken = crypto
       .createHash('sha256')
       .update(resetToken)
       .digest('hex');
 
-    // Set expire to 10 minutes
+    // Мерзімді 10 минутқа орнату
     const resetPasswordExpire = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Update user with reset token and expiration
+    // Пайдаланушыны қалпына келтіру токенімен және мерзімімен жаңарту
     await user.update({
       resetPasswordToken,
       resetPasswordExpire
     });
 
-    // Create reset url
+    // Қалпына келтіру URL мекенжайын жасау
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-    // TODO: Send email with reset token
-    // For now, return the reset URL for testing purposes
+    // TODO: Қалпына келтіру токенімен электрондық хат жіберу
+    // Тестілеу мақсатында қалпына келтіру URL мекенжайын қайтару
     res.status(200).json({
       success: true,
-      message: 'Password reset email sent',
-      resetUrl, // In production, don't include this in the response
-      resetToken // In production, don't include this in the response
+      message: 'Құпия сөзді қалпына келтіру электрондық хаты жіберілді',
+      resetUrl, // Өндірісте мұны жауапқа қоспаңыз
+      resetToken // Өндірісте мұны жауапқа қоспаңыз
     });
   } catch (err) {
     console.error(err);
     
-    // Reset token fields in database
+    // Дерекқордағы токен өрістерін қалпына келтіру
     await User.update(
       {
         resetPasswordToken: null,
@@ -290,18 +290,18 @@ exports.forgotPassword = async (req, res, next) => {
       }
     );
 
-    return next(new ErrorResponse('Email could not be sent', 500));
+    return next(new ErrorResponse('Электрондық хат жіберілмеді', 500));
   }
 };
 
 /**
- * @desc    Reset password
+ * @desc    Құпия сөзді қалпына келтіру
  * @route   PUT /api/auth/resetpassword/:resettoken
  * @access  Public
  */
 exports.resetPassword = async (req, res, next) => {
   try {
-    // Get hashed token
+    // Хэштелген токенді алу
     const resetPasswordToken = crypto
       .createHash('sha256')
       .update(req.params.resettoken)
@@ -315,10 +315,10 @@ exports.resetPassword = async (req, res, next) => {
     });
 
     if (!user) {
-      return next(new ErrorResponse('Invalid token', 400));
+      return next(new ErrorResponse('Жарамсыз токен', 400));
     }
 
-    // Set new password
+    // Жаңа құпия сөзді орнату
     user.password = req.body.password;
     user.resetPasswordToken = null;
     user.resetPasswordExpire = null;
@@ -331,7 +331,7 @@ exports.resetPassword = async (req, res, next) => {
 };
 
 /**
- * @desc    Refresh token
+ * @desc    Токенді жаңарту
  * @route   POST /api/auth/refresh-token
  * @access  Public
  */
@@ -340,37 +340,87 @@ exports.refreshToken = async (req, res, next) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      return next(new ErrorResponse('Please provide a refresh token', 400));
+      return next(new ErrorResponse('Жаңарту токенін ұсыныңыз', 400));
     }
 
-    // Verify the refresh token
+    // Жаңарту токенін тексеру
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
-    // Get user
+    // Пайдаланушыны алу
     const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['password'] }
     });
 
     if (!user) {
-      return next(new ErrorResponse('Invalid token', 401));
+      return next(new ErrorResponse('Жарамсыз токен', 401));
     }
 
-    // Generate new access token
+    // Жаңа кіру токенін жасау
     sendTokenResponse(user, 200, res);
   } catch (err) {
     if (err instanceof jwt.JsonWebTokenError) {
-      return next(new ErrorResponse('Invalid or expired token', 401));
+      return next(new ErrorResponse('Жарамсыз немесе мерзімі өткен токен', 401));
     }
     next(err);
   }
 };
 
-// Helper function to send token response
+
+/**
+ * @desc    Проверить, существует ли email
+ * @route   POST /api/auth/check-email
+ * @access  Public
+ */
+exports.checkEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const existingUser = await User.findOne({ where: { email } });
+
+    res.status(200).json({
+      success: true,
+      exists: !!existingUser
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * @desc    Проверить, существует ли студенческий ID
+ * @route   POST /api/auth/check-student-id
+ * @access  Public
+ */
+exports.checkStudentId = async (req, res, next) => {
+  try {
+    const { studentId } = req.body;
+
+    const existingUser = await User.findOne({ where: { studentId } });
+
+    res.status(200).json({
+      success: true,
+      exists: !!existingUser
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Токен жауабын жіберу көмекші функциясы
+ * 
+ * @description Бұл функция JWT токенін жасайды, оны cookie-ге орнатады және
+ * пайдаланушы мәліметтерімен бірге жауап қайтарады
+ * 
+ * @param {Object} user - Пайдаланушы нысаны
+ * @param {Number} statusCode - HTTP статус коды
+ * @param {Object} res - Жауап нысаны
+ */
 const sendTokenResponse = (user, statusCode, res) => {
-  // Create token
+  // Токен жасау
   const token = user.getSignedJwtToken();
 
-  // Create refresh token
+  // Жаңарту токенін жасау
   const refreshToken = jwt.sign(
     { id: user.id },
     process.env.JWT_REFRESH_SECRET || 'refresh_secret',
@@ -378,7 +428,7 @@ const sendTokenResponse = (user, statusCode, res) => {
   );
 
   const options = {
-    expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 күн
     httpOnly: true
   };
 
@@ -386,7 +436,7 @@ const sendTokenResponse = (user, statusCode, res) => {
     options.secure = true;
   }
 
-  // Don't send password in response
+  // Жауапта құпия сөзді жібермеу
   const userResponse = { ...user.get() };
   delete userResponse.password;
 

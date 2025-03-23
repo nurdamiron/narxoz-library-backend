@@ -2,27 +2,31 @@
 const nodemailer = require('nodemailer');
 
 /**
- * Send email using nodemailer
- * @param {Object} options - Email options
- * @param {String} options.email - Recipient email
- * @param {String} options.subject - Email subject
- * @param {String} options.message - Email message (plain text)
- * @param {String} options.html - Email message (HTML format)
- * @returns {Promise} - Email sending result
+ * Nodemailer арқылы электрондық хат жіберу
+ * 
+ * @param {Object} options - Электрондық хат опциялары
+ * @param {String} options.email - Алушының электрондық поштасы
+ * @param {String} options.subject - Электрондық хат тақырыбы
+ * @param {String} options.message - Электрондық хат хабарламасы (кәдімгі мәтін)
+ * @param {String} options.html - Электрондық хат хабарламасы (HTML пішімі)
+ * @returns {Promise} - Электрондық хат жіберу нәтижесі
+ * 
+ * @description Бұл функция SMTP арқылы электрондық хаттарды жіберуді жеңілдетеді.
+ * Ол Nodemailer транспортын конфигурациялайды және электрондық хат жіберуді қамтамасыз етеді.
  */
 const sendEmail = async (options) => {
-  // Create a transporter
+  // Транспорт құру
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    secure: process.env.SMTP_SECURE === 'true', // 465 порты үшін true, басқалары үшін false
     auth: {
       user: process.env.SMTP_EMAIL,
       pass: process.env.SMTP_PASSWORD,
     },
   });
 
-  // Define email options
+  // Электрондық хат опцияларын анықтау
   const message = {
     from: `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`,
     to: options.email,
@@ -31,10 +35,10 @@ const sendEmail = async (options) => {
     html: options.html || '',
   };
 
-  // Send email
+  // Электрондық хат жіберу
   const info = await transporter.sendMail(message);
 
-  console.log(`Email sent: ${info.messageId}`);
+  console.log(`Электрондық хат жіберілді: ${info.messageId}`);
   
   return info;
 };

@@ -5,55 +5,62 @@ const ErrorResponse = require('../utils/errorResponse');
 const { User } = require('../models');
 
 /**
- * Protect routes - authentication middleware
- * Verifies JWT token and adds user to request object
+ * Қорғалған маршруттар - аутентификация миддлвэрі
+ * JWT токенді тексеріп, пайдаланушыны сұраныс нысанына қосады
+ * 
+ * @description Бұл функция HTTP сұранысындағы токенді тексеріп, пайдаланушыны анықтайды
+ * және оны сұраныс объектісіне қосады. Егер токен жоқ немесе жарамсыз болса, қате қайтарады.
  */
 exports.protect = asyncHandler(async (req, res, next) => {
   let token;
 
-  // Get token from Authorization header (format: "Bearer token")
+  // Авторизация тақырыбынан токенді алу (формат: "Bearer token")
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
   ) {
-    // Extract token from Bearer token
+    // Bearer токеннен токенді алу
     token = req.headers.authorization.split(' ')[1];
   } 
-  // Alternative: get token from cookie
+  // Балама: cookie-ден токенді алу
   // else if (req.cookies.token) {
   //   token = req.cookies.token;
   // }
 
-  // Make sure token exists
+  // Токеннің бар екенін тексеру
   if (!token) {
-    return next(new ErrorResponse('Not authorized to access this route', 401));
+    return next(new ErrorResponse('Бұл маршрутқа кіруге рұқсат жоқ', 401));
   }
 
   try {
-    // Verify token
+    // Токенді тексеру
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Add user to request object
+    // Пайдаланушыны сұраныс объектісіне қосу
     req.user = await User.findByPk(decoded.id);
 
     next();
   } catch (err) {
-    return next(new ErrorResponse('Not authorized to access this route', 401));
+    return next(new ErrorResponse('Бұл маршрутқа кіруге рұқсат жоқ', 401));
   }
 });
 
 /**
- * Grant access to specific roles
- * @param {...String} roles - Roles allowed to access the route
- * @returns {Function} - Middleware function
+ * Белгілі рөлдерге рұқсат беру
+ * 
+ * @param {...String} roles - Маршрутқа рұқсат етілген рөлдер
+ * @returns {Function} - Миддлвэр функциясы
+ * 
+ * @description Бұл функция пайдаланушы рөлінің берілген рұқсат етілген рөлдер 
+ * тізімінде бар-жоғын тексереді және тек рұқсат етілген рөлдерге өтуге мүмкіндік береді.
  */
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    // Check if user role is in the authorized roles
+    // Пайдаланушы рөлінің рұқсат етілген рөлдерде бар-жоғын тексеру
     if (!roles.includes(req.user.role)) {
       return next(
         new ErrorResponse(
-          `User role ${req.user.role} is not authorized to access this route`,
+          `${req.user.role} рөлі бар пайдаланушыға бұл маршрутқа кіруге рұқсат жоқ`,
           403
         )
       );

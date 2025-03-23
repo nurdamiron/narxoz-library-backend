@@ -1,12 +1,15 @@
-// middleware/async.js
 /**
- * Async handler middleware
- * Wraps an async controller function to catch errors and pass them to the error middleware
+ * Асинхронды өңдеуші миддлвэр
+ * Асинхронды контроллер функцияларын қателерді ұстап, оларды қате миддлвэріне жіберу үшін ораушы
  * 
- * @param {Function} fn - The async controller function to wrap
- * @returns {Function} - Express middleware function
+ * @param {Function} fn - Оралатын асинхронды контроллер функциясы
+ * @returns {Function} - Express миддлвэр функциясы
+ * 
+ * Бұл миддлвэр try-catch блогын әр контроллер үшін қайталап жазу қажеттілігін 
+ * болдырмау арқылы кодтың қысқаруына және оқылуын жақсартуға мүмкіндік береді.
  */
-const asyncHandler = fn => (req, res, next) =>
-    Promise.resolve(fn(req, res, next)).catch(next);
-  
-  module.exports = asyncHandler;
+const asyncHandler = fn => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+module.exports = asyncHandler;
