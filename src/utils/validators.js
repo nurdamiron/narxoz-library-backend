@@ -2,8 +2,13 @@
 const { body, param, query, validationResult } = require('express-validator');
 
 /**
- * Process validation results middleware
- * Checks for validation errors and returns them if present
+ * Валидация нәтижелерін өңдеу миддлвэрі
+ * 
+ * @description Валидация қателерін тексеріп, оларды қайтарады
+ * @param {Object} req - Сұраныс объектісі
+ * @param {Object} res - Жауап объектісі
+ * @param {Function} next - Келесі миддлвэрге өту функциясы
+ * @returns {Object|void} - Қате болған жағдайда қате жауабы, әйтпесе келесі миддлвэрге өтеді
  */
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -17,34 +22,37 @@ const validate = (req, res, next) => {
 };
 
 /**
- * Book validation rules
+ * Кітап валидация ережелері
+ * 
+ * @description Кітапты жасау/жаңарту кезінде қолданылатын валидация ережелері
+ * @returns {Array} - Валидация ережелері массиві
  */
 const bookValidationRules = () => {
   return [
     body('title')
       .trim()
       .notEmpty()
-      .withMessage('Title is required')
+      .withMessage('Кітап атауы міндетті')
       .isLength({ max: 255 })
-      .withMessage('Title must be less than 255 characters'),
+      .withMessage('Кітап атауы 255 таңбадан аспауы керек'),
     body('author')
       .trim()
       .notEmpty()
-      .withMessage('Author is required')
+      .withMessage('Автор аты міндетті')
       .isLength({ max: 255 })
-      .withMessage('Author must be less than 255 characters'),
+      .withMessage('Автор аты 255 таңбадан аспауы керек'),
     body('category')
       .trim()
       .notEmpty()
-      .withMessage('Category is required'),
+      .withMessage('Категория міндетті'),
     body('publicationYear')
       .optional()
       .isInt({ min: 1000, max: new Date().getFullYear() })
-      .withMessage('Publication year must be a valid year'),
+      .withMessage('Жарияланған жыл жарамды болуы керек'),
     body('available')
       .optional()
       .isBoolean()
-      .withMessage('Available must be a boolean value'),
+      .withMessage('Қолжетімділік жай-күйі логикалық мән болуы керек'),
     body('description')
       .optional()
       .trim(),
@@ -52,32 +60,35 @@ const bookValidationRules = () => {
 };
 
 /**
- * User validation rules
+ * Пайдаланушы валидация ережелері
+ * 
+ * @description Пайдаланушыны жасау кезінде қолданылатын валидация ережелері
+ * @returns {Array} - Валидация ережелері массиві
  */
 const userValidationRules = () => {
   return [
     body('name')
       .trim()
       .notEmpty()
-      .withMessage('Name is required')
+      .withMessage('Аты міндетті')
       .isLength({ max: 255 })
-      .withMessage('Name must be less than 255 characters'),
+      .withMessage('Аты 255 таңбадан аспауы керек'),
     body('email')
       .trim()
       .notEmpty()
-      .withMessage('Email is required')
+      .withMessage('Email міндетті')
       .isEmail()
-      .withMessage('Please include a valid email')
+      .withMessage('Жарамды email енгізіңіз')
       .normalizeEmail(),
     body('password')
       .notEmpty()
-      .withMessage('Password is required')
+      .withMessage('Құпия сөз міндетті')
       .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters'),
+      .withMessage('Құпия сөз кем дегенде 6 таңбадан тұруы керек'),
     body('role')
       .optional()
       .isIn(['user', 'admin'])
-      .withMessage('Role must be either user or admin'),
+      .withMessage('Рөл user немесе admin болуы керек'),
     body('phone')
       .optional()
       .trim(),
@@ -97,24 +108,30 @@ const userValidationRules = () => {
 };
 
 /**
- * Login validation rules
+ * Кіру валидация ережелері
+ * 
+ * @description Жүйеге кіру кезінде қолданылатын валидация ережелері
+ * @returns {Array} - Валидация ережелері массиві
  */
 const loginValidationRules = () => {
   return [
     body('email')
       .trim()
       .notEmpty()
-      .withMessage('Email is required')
+      .withMessage('Email міндетті')
       .isEmail()
-      .withMessage('Please include a valid email'),
+      .withMessage('Жарамды email енгізіңіз'),
     body('password')
       .notEmpty()
-      .withMessage('Password is required'),
+      .withMessage('Құпия сөз міндетті'),
   ];
 };
 
 /**
- * Update user validation rules
+ * Пайдаланушыны жаңарту валидация ережелері
+ * 
+ * @description Пайдаланушы мәліметтерін жаңарту кезінде қолданылатын валидация ережелері
+ * @returns {Array} - Валидация ережелері массиві
  */
 const updateUserValidationRules = () => {
   return [
@@ -122,12 +139,12 @@ const updateUserValidationRules = () => {
       .optional()
       .trim()
       .isLength({ max: 255 })
-      .withMessage('Name must be less than 255 characters'),
+      .withMessage('Аты 255 таңбадан аспауы керек'),
     body('email')
       .optional()
       .trim()
       .isEmail()
-      .withMessage('Please include a valid email')
+      .withMessage('Жарамды email енгізіңіз')
       .normalizeEmail(),
     body('phone')
       .optional()
@@ -148,46 +165,55 @@ const updateUserValidationRules = () => {
 };
 
 /**
- * Change password validation rules
+ * Құпия сөзді өзгерту валидация ережелері
+ * 
+ * @description Құпия сөзді өзгерту кезінде қолданылатын валидация ережелері
+ * @returns {Array} - Валидация ережелері массиві
  */
 const changePasswordValidationRules = () => {
   return [
     body('currentPassword')
       .notEmpty()
-      .withMessage('Current password is required'),
+      .withMessage('Ағымдағы құпия сөз міндетті'),
     body('newPassword')
       .notEmpty()
-      .withMessage('New password is required')
+      .withMessage('Жаңа құпия сөз міндетті')
       .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters'),
+      .withMessage('Құпия сөз кем дегенде 6 таңбадан тұруы керек'),
   ];
 };
 
 /**
- * Borrow validation rules
+ * Қарызға алу валидация ережелері
+ * 
+ * @description Кітап қарызға алу кезінде қолданылатын валидация ережелері
+ * @returns {Array} - Валидация ережелері массиві
  */
 const borrowValidationRules = () => {
   return [
     body('bookId')
       .notEmpty()
-      .withMessage('Book ID is required')
+      .withMessage('Кітап ID міндетті')
       .isInt()
-      .withMessage('Book ID must be an integer'),
+      .withMessage('Кітап ID бүтін сан болуы керек'),
     body('userId')
       .optional()
       .isInt()
-      .withMessage('User ID must be an integer'),
+      .withMessage('Пайдаланушы ID бүтін сан болуы керек'),
   ];
 };
 
 /**
- * ID parameter validation rule
+ * ID параметрі валидация ережесі
+ * 
+ * @description URL параметріндегі ID валидациясы үшін қолданылатын ереже
+ * @returns {Array} - Валидация ережесі массиві
  */
 const idParamValidationRule = () => {
   return [
     param('id')
       .isInt()
-      .withMessage('ID must be an integer'),
+      .withMessage('ID бүтін сан болуы керек'),
   ];
 };
 

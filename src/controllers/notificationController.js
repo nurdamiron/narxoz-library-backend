@@ -1,8 +1,15 @@
-// controllers/notificationController.js
-const { Notification, User } = require('../models');
+/**
+ * Хабарландыру контроллері
+ * 
+ * @description Бұл файл пайдаланушы хабарландыруларын басқару функцияларын қамтиды.
+ * Хабарландыруларды жасау, алу, оқылды деп белгілеу және жою функцияларын қамтиды.
+ */
+const { Op } = require('sequelize');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
-const { Op } = require('sequelize');
+const db = require('../models');
+const Notification = db.Notification;
+const User = db.User;
 
 /**
  * @desc    Пайдаланушы үшін барлық хабарландыруларды алу
@@ -80,7 +87,7 @@ exports.getNotifications = asyncHandler(async (req, res, next) => {
  */
 exports.getNotification = asyncHandler(async (req, res, next) => {
   // ID бойынша хабарландыруды іздеу
-  const notification = await Notification.findByPk(req.params.id);
+  let notification = await Notification.findByPk(req.params.id);
 
   // Хабарландыру табылмаса қате қайтару
   if (!notification) {
@@ -92,7 +99,7 @@ exports.getNotification = asyncHandler(async (req, res, next) => {
   // Пайдаланушының хабарландыру иесі екенін тексеру
   if (notification.userId !== req.user.id) {
     return next(
-      new ErrorResponse(`${req.user.id} ID бар пайдаланушының бұл хабарландыруды жаңартуға рұқсаты жоқ`, 401)
+      new ErrorResponse(`${req.user.id} ID бар пайдаланушының бұл хабарландыруды көруге рұқсаты жоқ`, 401)
     );
   }
 

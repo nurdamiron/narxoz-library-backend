@@ -1,3 +1,9 @@
+/**
+ * Аутентификация контроллері
+ * 
+ * @description Бұл файл пайдаланушыларды тіркеу, кіру, шығу, құпия сөзді қалпына келтіру 
+ * және пайдаланушы мәліметтерін басқару функцияларын қамтиды.
+ */
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
@@ -104,8 +110,8 @@ exports.registerAdmin = async (req, res, next) => {
       password,
       role,
       // Егер әкімші болса, бұлар қажет болмауы мүмкін, бірақ олар міндетті өрістер
-      faculty: 'Administration',
-      specialization: 'Library Management',
+      faculty: 'Әкімшілік',
+      specialization: 'Кітапхана басқару',
       studentId: 'ADMIN-' + Math.floor(1000 + Math.random() * 9000),
       year: 'N/A'
     });
@@ -367,7 +373,7 @@ exports.refreshToken = async (req, res, next) => {
 
 
 /**
- * @desc    Проверить, существует ли email
+ * @desc    Email-дың бар-жоғын тексеру
  * @route   POST /api/auth/check-email
  * @access  Public
  */
@@ -387,7 +393,7 @@ exports.checkEmail = async (req, res, next) => {
 };
 
 /**
- * @desc    Проверить, существует ли студенческий ID
+ * @desc    Студент ID-ның бар-жоғын тексеру
  * @route   POST /api/auth/check-student-id
  * @access  Public
  */

@@ -13,7 +13,11 @@ const env = process.env.NODE_ENV || 'development';
 const config = require('../config/config')[env];
 const db = {};
 
-// Sequelize байланысын орнату
+/**
+ * Sequelize байланысын инициализациялау
+ * 
+ * @description Конфигурацияға сәйкес Sequelize байланысын орнатады
+ */
 let sequelize;
 if (config.use_env_variable) {
   sequelize = new Sequelize(process.env[config.use_env_variable], config);
@@ -21,7 +25,12 @@ if (config.use_env_variable) {
   sequelize = new Sequelize(config.database, config.username, config.password, config);
 }
 
-// Модель файлдарын жүктеу
+/**
+ * Модель файлдарын жүктеу
+ * 
+ * @description Ағымдағы директориядағы барлық .js модель файлдарын
+ * автоматты түрде жүктейді
+ */
 fs
   .readdirSync(__dirname)
   .filter(file => {
@@ -36,7 +45,7 @@ fs
     // Модельді импорттау
     const modelModule = require(path.join(__dirname, file));
     
-    // Тексеру: modelModule функция болып табыла ма
+    // Модель функция екенін тексеру
     if (typeof modelModule === 'function') {
       const model = modelModule(sequelize, Sequelize.DataTypes);
       db[model.name] = model;
@@ -45,13 +54,19 @@ fs
     }
   });
 
-// Модельдердің байланыстарын орнату
+/**
+ * Модельдер арасындағы байланыстарды орнату
+ * 
+ * @description Әрбір модельдің associate әдісін шақыру арқылы
+ * модельдер арасындағы байланыстарды конфигурациялайды
+ */
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
     db[modelName].associate(db);
   }
 });
 
+// Sequelize нұсқалары мен байланысын экспорттау
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 

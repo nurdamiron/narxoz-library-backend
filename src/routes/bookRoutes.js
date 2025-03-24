@@ -1,3 +1,9 @@
+/**
+ * Кітап және категория маршруттары
+ * 
+ * @description Бұл файл кітаптар мен категорияларды басқару 
+ * үшін API маршруттарын анықтайды
+ */
 const express = require('express');
 const { body } = require('express-validator');
 const {
@@ -17,55 +23,68 @@ const {
 } = require('../controllers/bookController');
 const { protect, authorize } = require('../middleware/auth');
 
+// Маршрутизатор инициализациясы
 const router = express.Router();
 
-// Book validation rules
+/**
+ * Кітап валидация ережелері
+ * 
+ * @description Кітапты жасау/жаңарту кезінде енгізілген деректерді тексеру ережелері
+ */
 const bookValidation = [
   body('title')
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Title must be between 2 and 100 characters'),
+    .withMessage('Атауы 2-100 таңба аралығында болуы керек'),
   body('author')
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Author name must be between 2 and 100 characters'),
+    .withMessage('Автор аты 2-100 таңба аралығында болуы керек'),
   body('categoryId')
     .isInt()
-    .withMessage('Please add a valid category ID'),
+    .withMessage('Жарамды категория ID енгізіңіз'),
   body('description')
     .trim()
     .notEmpty()
-    .withMessage('Please add a description'),
+    .withMessage('Сипаттама енгізіңіз'),
   body('publicationYear')
     .isInt({ min: 1000, max: new Date().getFullYear() })
-    .withMessage('Please add a valid publication year'),
+    .withMessage('Жарамды жарияланған жыл енгізіңіз'),
   body('language')
     .isIn(['Русский', 'Английский', 'Казахский'])
-    .withMessage('Please select a valid language'),
+    .withMessage('Жарамды тіл таңдаңыз'),
   body('totalCopies')
     .optional()
     .isInt({ min: 1 })
-    .withMessage('Total copies must be at least 1'),
+    .withMessage('Жалпы даналар саны кем дегенде 1 болуы керек'),
   body('isbn')
     .optional()
     .matches(/^(?=(?:\D*\d){10}(?:(?:\D*\d){3})?$)[\d-]+$/)
-    .withMessage('Please provide a valid ISBN')
+    .withMessage('Жарамды ISBN енгізіңіз')
 ];
 
-// Category validation
+/**
+ * Категория валидация ережелері
+ * 
+ * @description Категорияны жасау/жаңарту кезінде енгізілген деректерді тексеру ережелері
+ */
 const categoryValidation = [
   body('name')
     .trim()
     .isLength({ min: 2, max: 50 })
-    .withMessage('Category name must be between 2 and 50 characters'),
+    .withMessage('Категория атауы 2-50 таңба аралығында болуы керек'),
   body('description')
     .optional()
     .trim()
     .isLength({ max: 500 })
-    .withMessage('Description cannot be longer than 500 characters')
+    .withMessage('Сипаттама 500 таңбадан аспауы керек')
 ];
 
-// Routes for categories
+/**
+ * Категориялар үшін маршруттар
+ * 
+ * @description Категорияларды басқару маршруттары
+ */
 router
   .route('/categories')
   .get(getCategories)
@@ -76,11 +95,19 @@ router
   .put(protect, authorize('admin', 'librarian'), categoryValidation, updateCategory)
   .delete(protect, authorize('admin', 'librarian'), deleteCategory);
 
-// Routes for popular and new books
+/**
+ * Танымал және жаңа кітаптар үшін маршруттар
+ * 
+ * @description Танымал және жаңа қосылған кітаптарды алу маршруттары
+ */
 router.get('/popular', getPopularBooks);
 router.get('/new', getNewBooks);
 
-// Book CRUD routes
+/**
+ * Кітап CRUD маршруттары
+ * 
+ * @description Кітаптарды басқару үшін негізгі маршруттар
+ */
 router
   .route('/')
   .get(getBooks)
@@ -92,7 +119,11 @@ router
   .put(protect, authorize('admin', 'librarian'), updateBook)
   .delete(protect, authorize('admin', 'librarian'), deleteBook);
 
-// Upload book cover
+/**
+ * Кітап мұқабасын жүктеу
+ * 
+ * @description Кітап мұқабасын жүктеу үшін маршрут
+ */
 router.put(
   '/:id/cover',
   protect,
@@ -100,7 +131,11 @@ router.put(
   bookCoverUpload
 );
 
-// Update book inventory
+/**
+ * Кітап қорын жаңарту
+ * 
+ * @description Кітаптың қолжетімді даналар санын жаңарту үшін маршрут
+ */
 router.put(
   '/:id/inventory',
   protect,

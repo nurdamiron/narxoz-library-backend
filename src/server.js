@@ -1,3 +1,9 @@
+/**
+ * Нархоз Кітапхана API серверін іске қосу
+ * 
+ * @description Бұл файл Express серверін инициализациялайды, миддлвэрлерді және 
+ * маршрутизаторларды конфигурациялайды және серверді іске қосады
+ */
 const express = require('express');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
@@ -8,13 +14,13 @@ const { testConnection } = require('./config/database');
 const errorHandler = require('./middleware/error');
 const db = require('./models');
 
-// Load environment variables
+// Конфигурациялық айнымалыларды жүктеу
 dotenv.config();
 
-// Test database connection
+// Деректер қоры байланысын тексеру
 testConnection();
 
-// Route files
+// Маршрутизатор файлдары
 const authRoutes = require('./routes/authRoutes');
 const bookRoutes = require('./routes/bookRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -22,26 +28,31 @@ const borrowRoutes = require('./routes/borrowRoutes');
 const bookmarkRoutes = require('./routes/bookmarkRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
+// Express қосымшасын инициализациялау
 const app = express();
 
-// Body parser
+// JSON парсер
 app.use(express.json());
 
-// Enable CORS
-app.use(cors());
+// CORS конфигурациясы - барлық домендерден сұраныстарға рұқсат беру
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// Set security headers
+// Қауіпсіздік тақырыптарын орнату
 app.use(helmet());
 
-// Dev logging middleware
+// Әзірлеуші режимінде логтау миддлвэрі
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Set static folder for uploads
+// Статикалық файлдар үшін каталог орнату
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Mount routers
+// API маршруттарын тіркеу
 app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/users', userRoutes);
@@ -49,28 +60,37 @@ app.use('/api/borrows', borrowRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// Root route
+// Басты маршрут
 app.get('/', (req, res) => {
   res.json({
-    message: 'Welcome to Narxoz Library API',
-    version: '1.0.0'
+    message: 'Нархоз Кітапхана API-ге қош келдіңіз',
+    version: '1.0.0',
+    status: 'Онлайн',
+    docs: '/api/docs' // API құжаттамасына сілтеме (болашақта қосылады)
   });
 });
 
-// Error handling middleware
+// API құжаттамасы маршруты (болашақта Swagger қосылады)
+app.get('/api/docs', (req, res) => {
+  res.send('API құжаттамасы жасалу үстінде');
+});
+
+// Қате өңдеу миддлвэрі
 app.use(errorHandler);
 
+// Серверді іске қосу
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  console.log(`Сервер ${process.env.NODE_ENV} режимінде ${PORT} портта іске қосылды`);
 });
 
+// Деректер қорын инициализациялау
 require('./database-init');
 
-// Handle unhandled promise rejections
+// Өңделмеген промис қателерін өңдеу
 process.on('unhandledRejection', (err) => {
-  console.log(`Error: ${err.message}`);
-  // Close server & exit process
+  console.log(`Қате: ${err.message}`);
+  // Серверді жабу және процесті аяқтау
   server.close(() => process.exit(1));
 });

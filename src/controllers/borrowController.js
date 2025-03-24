@@ -88,8 +88,8 @@ exports.borrowBook = async (req, res, next) => {
       await Notification.create(
         {
           userId: req.user.id,
-          title: 'Книга успешно заказана',
-          message: `Вы успешно заказали книгу "${book.title}". Срок возврата - ${dueDate.toLocaleDateString()}`,
+          title: 'Кітап сәтті тапсырыс берілді',
+          message: `Сіз "${book.title}" кітабын сәтті тапсырыс бердіңіз. Қайтару мерзімі - ${dueDate.toLocaleDateString()}`,
           type: 'info',
           relatedModel: 'Borrow',
           relatedId: borrow.id,
@@ -199,8 +199,8 @@ exports.returnBook = async (req, res, next) => {
       await Notification.create(
         {
           userId: borrow.userId,
-          title: 'Книга успешно возвращена',
-          message: `Вы успешно вернули книгу "${borrow.book.title}". Спасибо за своевременный возврат!`,
+          title: 'Кітап сәтті қайтарылды',
+          message: `Сіз "${borrow.book.title}" кітабын сәтті қайтардыңыз. Уақытында қайтарғаныңыз үшін рахмет!`,
           type: 'info',
           relatedModel: 'Borrow',
           relatedId: borrow.id,
@@ -642,8 +642,8 @@ exports.checkOverdueBorrows = async (req, res, next) => {
           await Notification.create(
             {
               userId: borrow.userId,
-              title: 'Просрочен срок возврата книги',
-              message: `Срок возврата книги "${borrow.book.title}" истек. Пожалуйста, верните книгу в библиотеку как можно скорее.`,
+              title: 'Кітапты қайтару мерзімі өтіп кетті',
+              message: `"${borrow.book.title}" кітабын қайтару мерзімі өтіп кетті. Кітапты мүмкіндігінше тезірек кітапханаға қайтарыңыз.`,
               type: 'overdue',
               relatedModel: 'Borrow',
               relatedId: borrow.id,
@@ -737,8 +737,8 @@ exports.sendDueReminders = async (req, res, next) => {
         // Жаңа хабарландыру жасау
         await Notification.create({
           userId: borrow.userId,
-          title: 'Напоминание о сроке возврата книги',
-          message: `Срок возврата книги "${borrow.book.title}" наступает ${borrow.dueDate.toLocaleDateString()}. Пожалуйста, верните книгу вовремя.`,
+          title: 'Кітапты қайтару мерзімі туралы еске салу',
+          message: `"${borrow.book.title}" кітабын қайтару мерзімі ${borrow.dueDate.toLocaleDateString()} күні аяқталады. Кітапты уақытында қайтаруыңызды сұраймыз.`,
           type: 'return',
           relatedModel: 'Borrow',
           relatedId: borrow.id,
@@ -905,8 +905,8 @@ exports.extendBorrow = async (req, res, next) => {
       await Notification.create(
         {
           userId: borrow.userId,
-          title: 'Срок возврата книги продлен',
-          message: `Срок возврата книги "${borrow.book.title}" был продлен до ${newDueDate.toLocaleDateString()}.`,
+          title: 'Кітапты қайтару мерзімі ұзартылды',
+          message: `"${borrow.book.title}" кітабын қайтару мерзімі ${newDueDate.toLocaleDateString()} дейін ұзартылды.`,
           type: 'info',
           relatedModel: 'Borrow',
           relatedId: borrow.id,

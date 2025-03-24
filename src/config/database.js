@@ -1,6 +1,16 @@
+/**
+ * Деректер қоры конфигурациясы
+ * 
+ * @description Бұл файл Sequelize деректер қоры байланысын орнатады және тексереді
+ */
 const { Sequelize } = require('sequelize');
 const config = require('./config')[process.env.NODE_ENV || 'development'];
 
+/**
+ * Sequelize байланысын инициализациялау
+ * 
+ * @description Деректер қорына қосылу үшін Sequelize нұсқасын жасайды
+ */
 const sequelize = new Sequelize(
   config.database,
   config.username,
@@ -16,15 +26,29 @@ const sequelize = new Sequelize(
       acquire: 30000,
       idle: 10000,
     },
+    // Қосымша қауіпсіздік параметрлері
+    define: {
+      // SQL инъекциясын болдырмау үшін идентификаторларды қауіпсіз ету
+      quoteIdentifiers: true,
+      // Жаңа нұсқаларда барлық өрістерді белгісіз null емес
+      timestamps: true
+    }
   }
 );
 
+/**
+ * Деректер қоры байланысын тексеру
+ * 
+ * @description Деректер қорына қосылуды тексереді және қате болған 
+ * жағдайда қосымшаны тоқтатады
+ * @returns {Promise<void>} Тестілеу нәтижесі туралы ақпарат
+ */
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
+    console.log('Деректер қорымен байланыс сәтті орнатылды.');
   } catch (error) {
-    console.error('Unable to connect to the database:', error);
+    console.error('Деректер қорына қосылу мүмкін болмады:', error);
     process.exit(1);
   }
 };

@@ -6,7 +6,6 @@ const { User } = require('../models');
 
 /**
  * Қорғалған маршруттар - аутентификация миддлвэрі
- * JWT токенді тексеріп, пайдаланушыны сұраныс нысанына қосады
  * 
  * @description Бұл функция HTTP сұранысындағы токенді тексеріп, пайдаланушыны анықтайды
  * және оны сұраныс объектісіне қосады. Егер токен жоқ немесе жарамсыз болса, қате қайтарады.
@@ -23,9 +22,9 @@ exports.protect = asyncHandler(async (req, res, next) => {
     token = req.headers.authorization.split(' ')[1];
   } 
   // Балама: cookie-ден токенді алу
-  // else if (req.cookies.token) {
-  //   token = req.cookies.token;
-  // }
+  else if (req.cookies.token) {
+    token = req.cookies.token;
+  }
 
   // Токеннің бар екенін тексеру
   if (!token) {
@@ -38,6 +37,11 @@ exports.protect = asyncHandler(async (req, res, next) => {
 
     // Пайдаланушыны сұраныс объектісіне қосу
     req.user = await User.findByPk(decoded.id);
+    
+    // Пайдаланушы табылмаса
+    if (!req.user) {
+      return next(new ErrorResponse('Пайдаланушы табылмады', 401));
+    }
 
     next();
   } catch (err) {

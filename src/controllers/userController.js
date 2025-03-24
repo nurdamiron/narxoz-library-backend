@@ -1,11 +1,16 @@
-// controllers/userController.js
-const { User, Bookmark, Borrow } = require('../models');
+/**
+ * Пайдаланушы контроллері
+ * 
+ * @description Бұл файл пайдаланушыларды басқару функцияларын қамтиды.
+ * Пайдаланушыларды жасау, алу, жаңарту, жою және аватарды жүктеу функцияларын қамтиды.
+ */
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { Op } = require('sequelize');
+const { User, Bookmark, Borrow } = require('../models');
 
 /**
  * Аватарлар үшін жүктеу конфигурациясы

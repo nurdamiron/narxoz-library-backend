@@ -1,3 +1,9 @@
+/**
+ * Бетбелгі контроллері
+ * 
+ * @description Бұл файл пайдаланушылардың кітаптарға жасаған бетбелгілерін 
+ * басқару функцияларын қамтиды
+ */
 const { Op } = require('sequelize');
 const ErrorResponse = require('../utils/errorResponse');
 const db = require('../models');

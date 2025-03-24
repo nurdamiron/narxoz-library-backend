@@ -6,9 +6,13 @@
  * пайдаланушыларға өздерінің сүйікті кітаптарын белгілеуге және оларға жылдам қол 
  * жеткізуге мүмкіндік береді.
  */
-// src/models/Bookmark.js
 module.exports = (sequelize, DataTypes) => {
   const Bookmark = sequelize.define('Bookmark', {
+    /**
+     * Пайдаланушы идентификаторы
+     * 
+     * @description Бетбелгіні жасаған пайдаланушыға сілтеме
+     */
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -17,6 +21,12 @@ module.exports = (sequelize, DataTypes) => {
         key: 'id'
       }
     },
+    
+    /**
+     * Кітап идентификаторы
+     * 
+     * @description Бетбелгі жасалған кітапқа сілтеме
+     */
     bookId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -25,13 +35,19 @@ module.exports = (sequelize, DataTypes) => {
         key: 'id'
       }
     },
+    
+    /**
+     * Қосылған уақыты
+     * 
+     * @description Бетбелгі жасалған уақыт
+     */
     addedAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW
     }
   }, {
     indexes: [
-      // Ensure a user can only bookmark a book once
+      // Пайдаланушы бір кітапты тек бір рет бетбелгіге қоса алатынын қамтамасыз ету
       {
         unique: true,
         fields: ['userId', 'bookId']
@@ -39,12 +55,19 @@ module.exports = (sequelize, DataTypes) => {
     ]
   });
 
-  // Associate with other models
+  /**
+   * Басқа модельдермен байланыстар
+   * 
+   * @description Бетбелгі моделінің басқа модельдермен байланыстарын орнатады
+   */
   Bookmark.associate = (models) => {
+    // Пайдаланушымен байланыс
     Bookmark.belongsTo(models.User, {
       foreignKey: 'userId',
       as: 'user'
     });
+    
+    // Кітаппен байланыс
     Bookmark.belongsTo(models.Book, {
       foreignKey: 'bookId',
       as: 'book'

@@ -1,18 +1,35 @@
-// utils/errorResponse.js
 /**
- * Custom error response class
- * Extends the built-in Error class to include a status code
+ * Арнайы қате жауабы классы
+ * 
+ * @description Стандартты Error классын кеңейтіп, HTTP статус кодын қосады.
+ * Бұл класс API қателерін стандарттау үшін қолданылады.
  */
 class ErrorResponse extends Error {
-    /**
-     * Constructor for ErrorResponse
-     * @param {string} message - Error message
-     * @param {number} statusCode - HTTP status code
-     */
-    constructor(message, statusCode) {
-      super(message);
-      this.statusCode = statusCode;
-    }
+  /**
+   * ErrorResponse конструкторы
+   * 
+   * @param {string|string[]} message - Қате хабарламасы (жеке немесе массив)
+   * @param {number} statusCode - HTTP статус коды
+   */
+  constructor(message, statusCode) {
+    // Егер message массив болса, оны жолға түрлендіру
+    const formattedMessage = Array.isArray(message) ? message.join(', ') : message;
+    
+    // Негізгі Error классын шақыру
+    super(formattedMessage);
+    
+    // Статус кодын орнату
+    this.statusCode = statusCode;
+    
+    // Трассировканы дұрыс шығару үшін
+    Error.captureStackTrace(this, this.constructor);
+    
+    // Қате түрін орнату
+    this.name = 'ApiError';
+    
+    // Қате уақытын орнату
+    this.timestamp = new Date();
   }
-  
-  module.exports = ErrorResponse;
+}
+
+module.exports = ErrorResponse;
