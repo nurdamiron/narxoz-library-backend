@@ -35,11 +35,24 @@ const app = express();
 app.use(express.json());
 
 // CORS конфигурациясы - барлық домендерден сұраныстарға рұқсат беру
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:3001'];
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 
 // Қауіпсіздік тақырыптарын орнату
 app.use(helmet());

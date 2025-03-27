@@ -1,62 +1,80 @@
 // middleware/auth.js
-const jwt = require('jsonwebtoken');
 const asyncHandler = require('./async');
 const ErrorResponse = require('../utils/errorResponse');
 const { User } = require('../models');
 
 /**
- * Қорғалған маршруттар - аутентификация миддлвэрі
+ * Жеңілдетілген аутентификация - логин және құпия сөз арқылы тексеру
  * 
- * @description Бұл функция HTTP сұранысындағы токенді тексеріп, пайдаланушыны анықтайды
- * және оны сұраныс объектісіне қосады. Егер токен жоқ немесе жарамсыз болса, қате қайтарады.
+ * @description Бұл функция логин мен құпия сөзді тікелей деректер қорында тексеріп,
+ * пайдаланушыны сұраныс объектісіне (req.user) қосады. JWT токені пайдаланылмайды.
+ * Аутентификация екі әдіспен жүзеге асырылады:
+ * 1. HTTP базалық аутентификациясы (API үшін)
+ * 2. Сұраныс денесінде логин мен құпия сөз беру (веб-интерфейс үшін)
  */
 exports.protect = asyncHandler(async (req, res, next) => {
-  let token;
-
-  // Авторизация тақырыбынан токенді алу (формат: "Bearer token")
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
-    // Bearer токеннен токенді алу
-    token = req.headers.authorization.split(' ')[1];
+  // API үшін: аутторизация тақырыбынан алу
+  let credentials;
+  
+  if (req.headers.authorization && req.headers.authorization.startsWith('Basic')) {
+    // Base64 кодталған деректерді декодтау
+    const base64Credentials = req.headers.authorization.split(' ')[1];
+    const decoded = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+    
+    // Формат: "username:password"
+    const [username, password] = decoded.split(':');
+    
+    if (username && password) {
+      credentials = { username, password };
+    }
   } 
-  // Балама: cookie-ден токенді алу
-  else if (req.cookies.token) {
-    token = req.cookies.token;
+  // Веб-қолданба үшін: сұраныс денесінен немесе сессиядан алу
+  else if (req.body.username && req.body.password) {
+    credentials = {
+      username: req.body.username,
+      password: req.body.password
+    };
   }
-
-  // Токеннің бар екенін тексеру
-  if (!token) {
-    return next(new ErrorResponse('Бұл маршрутқа кіруге рұқсат жоқ', 401));
+  // Егер аутентификация берілмесе, 401 қайтару
+  else {
+    return next(new ErrorResponse('Авторизация қажет', 401));
   }
 
   try {
-    // Токенді тексеру
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Пайдаланушыны сұраныс объектісіне қосу
-    req.user = await User.findByPk(decoded.id);
+    // Пайдаланушыны іздеу
+    const user = await User.findOne({
+      where: { email: credentials.username }
+    });
     
-    // Пайдаланушы табылмаса
-    if (!req.user) {
-      return next(new ErrorResponse('Пайдаланушы табылмады', 401));
+    // Пайдаланушының бар-жоғын тексеру
+    if (!user) {
+      return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
-
+    
+    // Құпия сөзді тексеру
+    const isMatch = await user.matchPassword(credentials.password);
+    
+    if (!isMatch) {
+      return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
+    }
+    
+    // Пайдаланушы аутентификацияланған - сұранысқа қосу
+    req.user = user;
     next();
   } catch (err) {
-    return next(new ErrorResponse('Бұл маршрутқа кіруге рұқсат жоқ', 401));
+    return next(new ErrorResponse('Авторизация қатесі', 401));
   }
 });
 
 /**
- * Белгілі рөлдерге рұқсат беру
+ * Пайдаланушы рөлін тексеру
  * 
- * @param {...String} roles - Маршрутқа рұқсат етілген рөлдер
+ * @param {...String} roles - Қол жеткізуге рұқсат етілген рөлдер тізімі (admin, librarian, user)
  * @returns {Function} - Миддлвэр функциясы
- * 
  * @description Бұл функция пайдаланушы рөлінің берілген рұқсат етілген рөлдер 
- * тізімінде бар-жоғын тексереді және тек рұқсат етілген рөлдерге өтуге мүмкіндік береді.
+ * тізімінде бар-жоғын тексереді. Егер пайдаланушының рөлі рұқсат етілген рөлдер
+ * тізімінде болмаса, 403 Forbidden қатесін қайтарады. Мысалы, тек әкімшілерге 
+ * арналған беттерге тек "admin" рөлі бар пайдаланушылар ғана кіре алады.
  */
 exports.authorize = (...roles) => {
   return (req, res, next) => {
@@ -64,7 +82,7 @@ exports.authorize = (...roles) => {
     if (!roles.includes(req.user.role)) {
       return next(
         new ErrorResponse(
-          `${req.user.role} рөлі бар пайдаланушыға бұл маршрутқа кіруге рұқсат жоқ`,
+          `${req.user.role} рөлі бар пайдаланушыға бұл мазмұнға қол жеткізуге рұқсат жоқ`,
           403
         )
       );

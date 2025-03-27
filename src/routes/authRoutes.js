@@ -2,23 +2,20 @@
  * Аутентификация маршруттары
  * 
  * @description Бұл файл пайдаланушы аутентификациясы және авторизациясы үшін API маршруттарын анықтайды.
- * Тіркелу, кіру, құпия сөзді өзгерту және профильді басқару маршруттарын қамтиды.
+ * Кіру, шығу, құпия сөзді өзгерту және пайдаланушы профилін басқару маршруттарын қамтиды.
+ * Жүйеде JWT токендері пайдаланылмайды, оның орнына тікелей логин/құпия сөз тексеру әдісі қолданылады.
+ * Әр сұраныс үшін пайдаланушы HTTP базалық аутентификациясы арқылы немесе сұраныс денесінде 
+ * логин мен құпия сөз ұсыну арқылы аутентификациядан өтеді.
  */
 const express = require('express');
 const { body } = require('express-validator');
 const {
-  register,
   login,
-  logout,
   getMe,
   updateDetails,
   updatePassword,
-  forgotPassword,
-  resetPassword,
   registerAdmin,
-  refreshToken,
-  checkEmail,
-  checkStudentId
+  checkEmail
 } = require('../controllers/authController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -26,59 +23,30 @@ const { protect, authorize } = require('../middleware/auth');
 const router = express.Router();
 
 /**
- * Тіркелу валидация ережелері
+ * Кіру валидациясы
  * 
- * @description Пайдаланушы тіркелгенде енгізілген деректерді тексеру ережелері
- */
-const registerValidation = [
-  body('name')
-    .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Аты 2-50 таңба аралығында болуы керек'),
-  body('email')
-    .isEmail()
-    .withMessage('Жарамды email енгізіңіз')
-    .normalizeEmail(),
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Құпия сөз кем дегенде 6 таңбадан тұруы керек'),
-  body('faculty')
-    .trim()
-    .notEmpty()
-    .withMessage('Факультет міндетті өріс'),
-  body('specialization')
-    .trim()
-    .notEmpty()
-    .withMessage('Мамандық міндетті өріс'),
-  body('studentId')
-    .trim()
-    .notEmpty()
-    .withMessage('Студент ID міндетті өріс'),
-  body('year')
-    .trim()
-    .notEmpty()
-    .withMessage('Оқу жылы міндетті өріс')
-];
-
-/**
- * Кіру валидация ережелері
- * 
- * @description Жүйеге кіру кезінде енгізілген деректерді тексеру ережелері
+ * @description Жүйеге кіру кезінде деректерді тексеру ережелері.
+ * Email дұрыс форматта болуы және бос болмауы керек.
+ * Құпия сөз бос болмауы керек. Бұл ережелер пайдаланушыларға
+ * кіру барысында дұрыс қате хабарламаларын көрсетуге мүмкіндік береді.
  */
 const loginValidation = [
   body('email')
     .isEmail()
-    .withMessage('Жарамды email енгізіңіз')
+    .withMessage('Дұрыс email енгізіңіз')
     .normalizeEmail(),
   body('password')
     .notEmpty()
-    .withMessage('Құпия сөз міндетті өріс')
+    .withMessage('Құпия сөз міндетті')
 ];
 
 /**
- * Құпия сөзді өзгерту валидация ережелері
+ * Құпия сөзді өзгерту валидациясы
  * 
- * @description Пайдаланушы құпия сөзін өзгерту кезінде тексеру ережелері
+ * @description Пайдаланушы құпия сөзін өзгерту кезінде тексеру ережелері.
+ * Ағымдағы құпия сөз міндетті түрде берілуі керек.
+ * Жаңа құпия сөз міндетті түрде берілуі және кемінде 6 таңбадан тұруы керек.
+ * Бұл ережелер құпия сөзді өзгерту барысында қауіпсіздік деңгейін қамтамасыз етеді.
  */
 const updatePasswordValidation = [
   body('currentPassword')
@@ -86,17 +54,11 @@ const updatePasswordValidation = [
     .withMessage('Ағымдағы құпия сөз міндетті'),
   body('newPassword')
     .isLength({ min: 6 })
-    .withMessage('Жаңа құпия сөз кем дегенде 6 таңбадан тұруы керек')
+    .withMessage('Жаңа құпия сөз кемінде 6 таңбадан тұруы керек')
 ];
-
-// Пайдаланушы тіркеу
-router.post('/register', registerValidation, register);
 
 // Пайдаланушы кіру
 router.post('/login', loginValidation, login);
-
-// Пайдаланушы шығу
-router.get('/logout', logout);
 
 // Ағымдағы пайдаланушыны алу
 router.get('/me', protect, getMe);
@@ -106,15 +68,6 @@ router.put('/updatedetails', protect, updateDetails);
 
 // Құпия сөзді жаңарту
 router.put('/updatepassword', protect, updatePasswordValidation, updatePassword);
-
-// Құпия сөзді ұмыту
-router.post('/forgotpassword', forgotPassword);
-
-// Құпия сөзді қалпына келтіру
-router.put('/resetpassword/:resettoken', resetPassword);
-
-// Токенді жаңарту
-router.post('/refresh-token', refreshToken);
 
 // Әкімші маршруттары
 router.post(
@@ -126,8 +79,5 @@ router.post(
 
 // Email бар-жоғын тексеру
 router.post('/check-email', checkEmail);
-
-// Студент ID бар-жоғын тексеру
-router.post('/check-student-id', checkStudentId);
 
 module.exports = router;

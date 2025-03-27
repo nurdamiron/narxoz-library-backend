@@ -1,58 +1,18 @@
-/**
- * Аутентификация контроллері
- * 
- * @description Бұл файл пайдаланушыларды тіркеу, кіру, шығу, құпия сөзді қалпына келтіру 
- * және пайдаланушы мәліметтерін басқару функцияларын қамтиды.
- */
-const crypto = require('crypto');
+// controllers/authController.js
 const { validationResult } = require('express-validator');
-const jwt = require('jsonwebtoken');
 const ErrorResponse = require('../utils/errorResponse');
 const db = require('../models');
 const User = db.User;
 
 /**
- * @desc    Пайдаланушыны тіркеу
- * @route   POST /api/auth/register
- * @access  Public
- */
-exports.register = async (req, res, next) => {
-  try {
-    // Валидация қателерін тексеру
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
-    const { name, email, password, phone, faculty, specialization, studentId, year } = req.body;
-
-    // Пайдаланушыны жасау
-    const user = await User.create({
-      name,
-      email,
-      password,
-      phone,
-      faculty,
-      specialization,
-      studentId,
-      year,
-      role: 'user'
-    });
-
-    // Токен жасау
-    sendTokenResponse(user, 201, res);
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
  * @desc    Пайдаланушы кіру
  * @route   POST /api/auth/login
  * @access  Public
+ * @description Бұл функция пайдаланушының жүйеге кіруін өңдейді. 
+ * Пайдаланушы email және құпия сөзді жібереді, жүйе оларды деректер
+ * қорындағы мәліметтермен салыстырады. Аутентификация сәтті болған 
+ * жағдайда, пайдаланушы туралы ақпаратты қайтарады. JWT токені 
+ * пайдаланылмайды, әр сұраныс логин/құпия сөзді тікелей тексереді.
  */
 exports.login = async (req, res, next) => {
   try {
@@ -64,87 +24,27 @@ exports.login = async (req, res, next) => {
     }
 
     // Пайдаланушыны тексеру
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ 
+      where: { email },
+      attributes: { exclude: ['password'] } // Жауапта құпия сөзді қайтармау
+    });
 
     if (!user) {
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
 
-    // Құпия сөздің сәйкестігін тексеру
-    const isMatch = await user.matchPassword(password);
+    // Құпия сөзді тексеру
+    const fullUser = await User.findOne({ where: { email } });
+    const isMatch = await fullUser.matchPassword(password);
 
     if (!isMatch) {
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
 
-    // Токен жасау
-    sendTokenResponse(user, 200, res);
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * @desc    Әкімшіні тіркеу (тек супер әкімшілер әкімшілерді жасай алады)
- * @route   POST /api/auth/register-admin
- * @access  Private/Admin
- */
-exports.registerAdmin = async (req, res, next) => {
-  try {
-    // Тек әкімші басқа әкімшілерді немесе кітапханашыларды жасай алады
-    if (req.user.role !== 'admin') {
-      return next(new ErrorResponse('Әкімші тіркелгілерін жасауға рұқсатыңыз жоқ', 403));
-    }
-
-    const { name, email, password, role } = req.body;
-
-    // Рөлдің әкімші немесе кітапханашы екенін тексеру
-    if (role !== 'admin' && role !== 'librarian') {
-      return next(new ErrorResponse('Жарамсыз рөл тағайындау', 400));
-    }
-
-    // Әкімші пайдаланушысын жасау
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role,
-      // Егер әкімші болса, бұлар қажет болмауы мүмкін, бірақ олар міндетті өрістер
-      faculty: 'Әкімшілік',
-      specialization: 'Кітапхана басқару',
-      studentId: 'ADMIN-' + Math.floor(1000 + Math.random() * 9000),
-      year: 'N/A'
-    });
-
-    res.status(201).json({
-      success: true,
-      data: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * @desc    Пайдаланушы шығу / cookie тазалау
- * @route   GET /api/auth/logout
- * @access  Private
- */
-exports.logout = async (req, res, next) => {
-  try {
-    res.cookie('token', 'none', {
-      expires: new Date(Date.now() + 10 * 1000),
-      httpOnly: true
-    });
-
+    // Пайдаланушы ақпаратын қайтару
     res.status(200).json({
       success: true,
-      data: {}
+      data: user
     });
   } catch (err) {
     next(err);
@@ -152,9 +52,13 @@ exports.logout = async (req, res, next) => {
 };
 
 /**
- * @desc    Ағымдағы кірген пайдаланушыны алу
+ * @desc    Ағымдағы аутентификацияланған пайдаланушыны алу
  * @route   GET /api/auth/me
  * @access  Private
+ * @description Бұл функция аутентификациядан өткен пайдаланушының
+ * толық ақпаратын қайтарады. Бұл сұраныс "protect" миддлвэрімен
+ * қорғалған, яғни аутентификация қажет. Пайдаланушы мәліметтері 
+ * қайтарылған кезде, құпия сөз жойылады.
  */
 exports.getMe = async (req, res, next) => {
   try {
@@ -175,6 +79,11 @@ exports.getMe = async (req, res, next) => {
  * @desc    Пайдаланушы мәліметтерін жаңарту
  * @route   PUT /api/auth/updatedetails
  * @access  Private
+ * @description Бұл функция аутентификацияланған пайдаланушының
+ * жеке мәліметтерін жаңартады. Жаңартуға болатын өрістер: аты,
+ * email, телефон, факультет, мамандық және курс/жыл. Құпия сөзді
+ * бұл функция арқылы жаңарту мүмкін емес, бұл үшін арнайы
+ * updatePassword функциясы пайдаланылады.
  */
 exports.updateDetails = async (req, res, next) => {
   try {
@@ -201,7 +110,7 @@ exports.updateDetails = async (req, res, next) => {
     // Пайдаланушыны жаңарту
     await user.update(fieldsToUpdate);
 
-    // Жаңартылған мәліметтермен пайдаланушыны қайта алу
+    // Жаңартылған пайдаланушы мәліметтерін алу
     const updatedUser = await User.findByPk(req.user.id, {
       attributes: { exclude: ['password'] }
     });
@@ -216,166 +125,64 @@ exports.updateDetails = async (req, res, next) => {
 };
 
 /**
- * @desc    Құпия сөзді жаңарту
- * @route   PUT /api/auth/updatepassword
- * @access  Private
+ * @desc    Әкімші тіркеу (тек бас әкімшілер үшін)
+ * @route   POST /api/auth/register-admin
+ * @access  Private/Admin
+ * @description Бұл функция жаңа әкімші немесе кітапханашы пайдаланушысын
+ * жасауға мүмкіндік береді. Тек "admin" рөлі бар пайдаланушылар ғана
+ * осы функцияны пайдалана алады. Жаңа пайдаланушы үшін аты, email,
+ * құпия сөзі және рөлі (admin немесе librarian) көрсетілуі керек.
+ * Басқа өрістер автоматты түрде әдепкі мәндермен толтырылады.
  */
-exports.updatePassword = async (req, res, next) => {
+exports.registerAdmin = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.user.id);
-
-    // Ағымдағы құпия сөзді тексеру
-    const isMatch = await user.matchPassword(req.body.currentPassword);
-    if (!isMatch) {
-      return next(new ErrorResponse('Құпия сөз дұрыс емес', 401));
+    // Тек әкімші басқа әкімшілерді жасай алады
+    if (req.user.role !== 'admin') {
+      return next(new ErrorResponse('Әкімші тіркелгілерін жасауға рұқсатыңыз жоқ', 403));
     }
 
-    // Құпия сөзді жаңарту
-    user.password = req.body.newPassword;
-    await user.save();
+    const { name, email, password, role } = req.body;
 
-    sendTokenResponse(user, 200, res);
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * @desc    Құпия сөзді ұмыту
- * @route   POST /api/auth/forgotpassword
- * @access  Public
- */
-exports.forgotPassword = async (req, res, next) => {
-  try {
-    const user = await User.findOne({ where: { email: req.body.email } });
-
-    if (!user) {
-      return next(new ErrorResponse('Бұндай email бар пайдаланушы жоқ', 404));
+    // Рөлдің әкімші немесе кітапханашы екенін тексеру
+    if (role !== 'admin' && role !== 'librarian') {
+      return next(new ErrorResponse('Жарамсыз рөл', 400));
     }
 
-    // Қалпына келтіру токенін алу
-    const resetToken = crypto.randomBytes(20).toString('hex');
-
-    // Токенді хэштеу және resetPasswordToken өрісіне орнату
-    const resetPasswordToken = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
-
-    // Мерзімді 10 минутқа орнату
-    const resetPasswordExpire = new Date(Date.now() + 10 * 60 * 1000);
-
-    // Пайдаланушыны қалпына келтіру токенімен және мерзімімен жаңарту
-    await user.update({
-      resetPasswordToken,
-      resetPasswordExpire
+    // Әкімші пайдаланушысын жасау
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role,
+      // Әкімші үшін міндетті өрістер
+      faculty: 'Әкімшілік',
+      specialization: 'Кітапхана басқару',
+      studentId: 'ADMIN-' + Math.floor(1000 + Math.random() * 9000),
+      year: 'N/A'
     });
 
-    // Қалпына келтіру URL мекенжайын жасау
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    // Жауапта құпия сөзді жою
+    const userResponse = user.toJSON();
+    delete userResponse.password;
 
-    // TODO: Қалпына келтіру токенімен электрондық хат жіберу
-    // Тестілеу мақсатында қалпына келтіру URL мекенжайын қайтару
-    res.status(200).json({
+    res.status(201).json({
       success: true,
-      message: 'Құпия сөзді қалпына келтіру электрондық хаты жіберілді',
-      resetUrl, // Өндірісте мұны жауапқа қоспаңыз
-      resetToken // Өндірісте мұны жауапқа қоспаңыз
+      data: userResponse
     });
-  } catch (err) {
-    console.error(err);
-    
-    // Дерекқордағы токен өрістерін қалпына келтіру
-    await User.update(
-      {
-        resetPasswordToken: null,
-        resetPasswordExpire: null
-      },
-      {
-        where: { email: req.body.email }
-      }
-    );
-
-    return next(new ErrorResponse('Электрондық хат жіберілмеді', 500));
-  }
-};
-
-/**
- * @desc    Құпия сөзді қалпына келтіру
- * @route   PUT /api/auth/resetpassword/:resettoken
- * @access  Public
- */
-exports.resetPassword = async (req, res, next) => {
-  try {
-    // Хэштелген токенді алу
-    const resetPasswordToken = crypto
-      .createHash('sha256')
-      .update(req.params.resettoken)
-      .digest('hex');
-
-    const user = await User.findOne({
-      where: {
-        resetPasswordToken,
-        resetPasswordExpire: { [db.Sequelize.Op.gt]: Date.now() }
-      }
-    });
-
-    if (!user) {
-      return next(new ErrorResponse('Жарамсыз токен', 400));
-    }
-
-    // Жаңа құпия сөзді орнату
-    user.password = req.body.password;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpire = null;
-    await user.save();
-
-    sendTokenResponse(user, 200, res);
   } catch (err) {
     next(err);
   }
 };
 
 /**
- * @desc    Токенді жаңарту
- * @route   POST /api/auth/refresh-token
- * @access  Public
- */
-exports.refreshToken = async (req, res, next) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return next(new ErrorResponse('Жаңарту токенін ұсыныңыз', 400));
-    }
-
-    // Жаңарту токенін тексеру
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-
-    // Пайдаланушыны алу
-    const user = await User.findByPk(decoded.id, {
-      attributes: { exclude: ['password'] }
-    });
-
-    if (!user) {
-      return next(new ErrorResponse('Жарамсыз токен', 401));
-    }
-
-    // Жаңа кіру токенін жасау
-    sendTokenResponse(user, 200, res);
-  } catch (err) {
-    if (err instanceof jwt.JsonWebTokenError) {
-      return next(new ErrorResponse('Жарамсыз немесе мерзімі өткен токен', 401));
-    }
-    next(err);
-  }
-};
-
-
-/**
- * @desc    Email-дың бар-жоғын тексеру
+ * @desc    Email бар-жоғын тексеру
  * @route   POST /api/auth/check-email
  * @access  Public
+ * @description Бұл функция берілген email мекенжайының деректер
+ * қорында бар-жоғын тексереді. Қауіпсіздік мақсатында, функция
+ * тек email бар-жоғын көрсетеді, пайдаланушы туралы қосымша
+ * ақпаратты қайтармайды. Бұл функция жүйеге кіру немесе тіркелу
+ * формаларында email өрісін тексеру үшін пайдаланылады.
  */
 exports.checkEmail = async (req, res, next) => {
   try {
@@ -393,66 +200,35 @@ exports.checkEmail = async (req, res, next) => {
 };
 
 /**
- * @desc    Студент ID-ның бар-жоғын тексеру
- * @route   POST /api/auth/check-student-id
- * @access  Public
+ * @desc    Құпия сөзді өзгерту
+ * @route   PUT /api/auth/updatepassword
+ * @access  Private
+ * @description Бұл функция аутентификацияланған пайдаланушының
+ * құпия сөзін өзгертуге мүмкіндік береді. Пайдаланушы ағымдағы
+ * құпия сөзін және жаңа құпия сөзін енгізуі керек. Ағымдағы
+ * құпия сөз дұрыс болған жағдайда ғана жаңа құпия сөз орнатылады.
+ * Жаңа құпия сөз дерекқорға сақталмас бұрын хэшталады, бұл
+ * қауіпсіздікті қамтамасыз етеді.
  */
-exports.checkStudentId = async (req, res, next) => {
+exports.updatePassword = async (req, res, next) => {
   try {
-    const { studentId } = req.body;
+    const user = await User.findByPk(req.user.id);
 
-    const existingUser = await User.findOne({ where: { studentId } });
+    // Ағымдағы құпия сөзді тексеру
+    const isMatch = await user.matchPassword(req.body.currentPassword);
+    if (!isMatch) {
+      return next(new ErrorResponse('Құпия сөз дұрыс емес', 401));
+    }
+
+    // Құпия сөзді жаңарту
+    user.password = req.body.newPassword;
+    await user.save();
 
     res.status(200).json({
       success: true,
-      exists: !!existingUser
+      message: 'Құпия сөз сәтті жаңартылды'
     });
   } catch (err) {
     next(err);
   }
-};
-
-/**
- * Токен жауабын жіберу көмекші функциясы
- * 
- * @description Бұл функция JWT токенін жасайды, оны cookie-ге орнатады және
- * пайдаланушы мәліметтерімен бірге жауап қайтарады
- * 
- * @param {Object} user - Пайдаланушы нысаны
- * @param {Number} statusCode - HTTP статус коды
- * @param {Object} res - Жауап нысаны
- */
-const sendTokenResponse = (user, statusCode, res) => {
-  // Токен жасау
-  const token = user.getSignedJwtToken();
-
-  // Жаңарту токенін жасау
-  const refreshToken = jwt.sign(
-    { id: user.id },
-    process.env.JWT_REFRESH_SECRET || 'refresh_secret',
-    { expiresIn: '7d' }
-  );
-
-  const options = {
-    expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 күн
-    httpOnly: true
-  };
-
-  if (process.env.NODE_ENV === 'production') {
-    options.secure = true;
-  }
-
-  // Жауапта құпия сөзді жібермеу
-  const userResponse = { ...user.get() };
-  delete userResponse.password;
-
-  res
-    .status(statusCode)
-    .cookie('token', token, options)
-    .json({
-      success: true,
-      token,
-      refreshToken,
-      data: userResponse
-    });
 };
