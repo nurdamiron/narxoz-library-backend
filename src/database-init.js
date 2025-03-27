@@ -42,7 +42,7 @@ async function initDatabase() {
       await db.User.create({
         name: 'Әкімші',
         email: 'admin@narxoz.kz',
-        password: 'Admin123!', // модельде автоматты түрде шифрланады
+        password: 'admin123', // модельде автоматты түрде шифрланады
         phone: '+77001234567',
         faculty: 'Әкімшілік',
         specialization: 'Кітапхана',
