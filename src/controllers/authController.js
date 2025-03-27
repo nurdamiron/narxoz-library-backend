@@ -25,31 +25,33 @@ exports.login = async (req, res, next) => {
 
     // Пайдаланушыны тексеру
     const user = await User.findOne({ 
-      where: { email },
-      attributes: { exclude: ['password'] } // Жауапта құпия сөзді қайтармау
+      where: { email }
     });
 
     if (!user) {
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
 
-    // Құпия сөзді тексеру
-    const fullUser = await User.findOne({ where: { email } });
-    const isMatch = await fullUser.matchPassword(password);
+    // Құпия сөзді тікелей салыстыру
+    const isMatch = password === user.password;
 
     if (!isMatch) {
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
 
-    // Пайдаланушы ақпаратын қайтару
+    // Пайдаланушы ақпаратын қайтару (құпия сөзсіз)
+    const userWithoutPassword = user.toJSON();
+    delete userWithoutPassword.password;
+
     res.status(200).json({
       success: true,
-      data: user
+      data: userWithoutPassword
     });
   } catch (err) {
     next(err);
   }
 };
+
 
 /**
  * @desc    Ағымдағы аутентификацияланған пайдаланушыны алу
@@ -214,13 +216,13 @@ exports.updatePassword = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.user.id);
 
-    // Ағымдағы құпия сөзді тексеру
-    const isMatch = await user.matchPassword(req.body.currentPassword);
+    // Ағымдағы құпия сөзді тікелей салыстыру
+    const isMatch = req.body.currentPassword === user.password;
     if (!isMatch) {
       return next(new ErrorResponse('Құпия сөз дұрыс емес', 401));
     }
 
-    // Құпия сөзді жаңарту
+    // Құпия сөзді тікелей жаңарту (хэшсіз)
     user.password = req.body.newPassword;
     await user.save();
 
