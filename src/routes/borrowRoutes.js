@@ -31,30 +31,17 @@ const router = express.Router();
 router.use(protect);
 
 /**
- * Жүйенің барлық қарызға алуларын алу (админдер мен кітапханашылар үшін)
- * ВАЖНО: Этот маршрут должен быть определен до маршрутов с :id, чтобы избежать конфликтов
- */
-router.get('/', getAllBorrows, getUserBorrows);
-
-/**
  * Пайдаланушы қарызға алу маршруттары
  * 
  * @description Пайдаланушының қарызға алуларын басқаруға арналған маршруттар
  */
-router.post(
-  '/',
-  [body('bookId').isInt().withMessage('Жарамды кітап ID енгізіңіз')],
-  borrowBook
-);
-
-/**
- * Тек әкімші немесе кітапханашыға арналған маршруттар
- * 
- * @description Жүйенің барлық қарызға алуларын басқаруға арналған маршруттар
- */
-router.get('/check-overdue', authorize('admin', 'librarian'), checkOverdueBorrows);
-router.get('/send-reminders', authorize('admin', 'librarian'), sendDueReminders);
-router.get('/stats', authorize('admin', 'librarian'), getBorrowStats);
+router
+  .route('/')
+  .get(getUserBorrows)
+  .post(
+    [body('bookId').isInt().withMessage('Жарамды кітап ID енгізіңіз')],
+    borrowBook
+  );
 
 /**
  * Жеке қарызға алу операцияларын басқару
@@ -64,6 +51,16 @@ router.get('/stats', authorize('admin', 'librarian'), getBorrowStats);
 router.get('/:id', getBorrow);
 router.put('/:id/return', returnBook);
 router.put('/:id/extend', extendBorrow);
+
+/**
+ * Тек әкімші немесе кітапханашыға арналған маршруттар
+ * 
+ * @description Жүйенің барлық қарызға алуларын басқаруға арналған маршруттар
+ */
+router.get('/all', authorize('admin', 'librarian'), getAllBorrows);
 router.put('/:id', authorize('admin', 'librarian'), updateBorrow);
+router.get('/check-overdue', authorize('admin', 'librarian'), checkOverdueBorrows);
+router.get('/send-reminders', authorize('admin', 'librarian'), sendDueReminders);
+router.get('/stats', authorize('admin', 'librarian'), getBorrowStats);
 
 module.exports = router;
