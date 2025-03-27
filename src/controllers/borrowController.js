@@ -316,7 +316,7 @@ exports.getUserBorrows = async (req, res, next) => {
 
 /**
  * @desc    Барлық қарызға алуларды алу (тек әкімші немесе кітапханашы үшін)
- * @route   GET /api/borrows/all
+ * @route   GET /api/borrows
  * @access  Private/Admin/Librarian
  * 
  * @description Бұл функция жүйедегі барлық қарызға алуларды іздейді және қайтарады.
@@ -324,51 +324,73 @@ exports.getUserBorrows = async (req, res, next) => {
  */
 exports.getAllBorrows = async (req, res, next) => {
   try {
+    // Проверка прав доступа
+    if (req.user.role !== 'admin' && req.user.role !== 'librarian') {
+      return next(
+        new ErrorResponse('Тек әкімші немесе кітапханашылар барлық қарызға алуларды көре алады', 403)
+      );
+    }
+
+    // Проверка параметра запроса allBorrows, чтобы не конфликтовать с getUserBorrows
+    const isAllBorrowsRequest = req.query.allBorrows === 'true' || req.originalUrl.includes('/borrows/all');
+    
+    // Если это не запрос на все займы или пользователь не админ/библиотекарь, следуем стандартному поведению
+    if (!isAllBorrowsRequest && req.user.role !== 'admin' && req.user.role !== 'librarian') {
+      return next();
+    }
+    
     // Сүзу параметрлері
     const { status, userId, bookId, startDate, endDate, overdue } = req.query;
-
+    
     // Сұраныс шартын құру
     const where = {};
-
+    
     // Мәртебе бойынша сүзу
     if (status && ['active', 'returned', 'overdue'].includes(status)) {
       where.status = status;
     }
-
+    
     // Пайдаланушы ID бойынша сүзу
     if (userId) {
       where.userId = userId;
     }
-
+    
     // Кітап ID бойынша сүзу
     if (bookId) {
       where.bookId = bookId;
     }
-
+    
     // Күн аралығы бойынша сүзу
     if (startDate || endDate) {
       where.borrowDate = {};
-
       if (startDate) {
         where.borrowDate[Op.gte] = new Date(startDate);
       }
-
       if (endDate) {
         where.borrowDate[Op.lte] = new Date(endDate);
       }
     }
-
+    
     // Мерзімі өткен қарызға алуларды сүзу
     if (overdue === 'true') {
       where.status = 'active';
       where.dueDate = { [Op.lt]: new Date() };
     }
-
+    
     // Беттеу
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const offset = (page - 1) * limit;
-
+    
+    // Логирование для отладки
+    console.log('Fetching all borrows with params:', {
+      where,
+      page,
+      limit,
+      offset,
+      isAllBorrowsRequest
+    });
+    
     // Беттеумен бірге қарызға алуларды іздеу
     const { count, rows: borrows } = await Borrow.findAndCountAll({
       where,
@@ -388,24 +410,22 @@ exports.getAllBorrows = async (req, res, next) => {
       limit,
       offset,
     });
-
+    
     // Беттеу нәтижесі
     const pagination = {};
-
     if (offset + borrows.length < count) {
       pagination.next = {
         page: page + 1,
         limit,
       };
     }
-
     if (offset > 0) {
       pagination.prev = {
         page: page - 1,
         limit,
       };
     }
-
+    
     res.status(200).json({
       success: true,
       count: borrows.length,
