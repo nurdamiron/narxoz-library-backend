@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'user',
       validate: {
         isIn: {
-          args: [['admin', 'librarian']],
+          args: [['admin', 'librarian', 'user']],
           msg: 'Рөл admin немесе librarian болуы керек'
         }
       }

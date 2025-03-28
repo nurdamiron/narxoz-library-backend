@@ -8,6 +8,7 @@ const Book = db.Book;
 const Category = db.Category;
 const Bookmark = db.Bookmark;
 const User = db.User;
+const { validationResult } = require('express-validator');
 
 /**
  * @desc    Барлық кітаптарды алу
@@ -238,22 +239,85 @@ exports.getBook = async (req, res, next) => {
  */
 exports.createBook = async (req, res, next) => {
   try {
-    // Категорияның бар-жоғын тексеру
-    const category = await Category.findByPk(req.body.categoryId);
-    if (!category) {
-      return next(
-        new ErrorResponse(`${req.body.categoryId} ID-мен категория табылмады`, 404)
-      );
+    // Валидация қателерін тексеру
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array(),
+        message: 'Валидация қатесі'
+      });
+    }
+
+    // ISBN дұрыстығын тексеру
+    if (req.body.isbn) {
+      const cleanedISBN = req.body.isbn.replace(/[-\s]/g, '');
+      
+      // ISBN ұзындығын тексеру
+      if (cleanedISBN.length !== 10 && cleanedISBN.length !== 13) {
+        return res.status(400).json({
+          success: false,
+          message: 'Жарамды ISBN нөмірін енгізіңіз'
+        });
+      }
+      
+      // ISBN форматын тексеру
+      if (cleanedISBN.length === 10) {
+        if (!/^[0-9]{9}[0-9X]$/.test(cleanedISBN)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Жарамды ISBN нөмірін енгізіңіз'
+          });
+        }
+      } else if (!/^[0-9]{13}$/.test(cleanedISBN)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Жарамды ISBN нөмірін енгізіңіз'
+        });
+      }
     }
 
     // Кітап жасау
-    const book = await Book.create(req.body);
+    const book = await Book.create({
+      title: req.body.title,
+      author: req.body.author,
+      categoryId: req.body.categoryId,
+      description: req.body.description,
+      publicationYear: req.body.publicationYear,
+      language: req.body.language,
+      totalCopies: req.body.totalCopies || 1,
+      availableCopies: req.body.availableCopies || req.body.totalCopies || 1,
+      isbn: req.body.isbn || null,
+      borrowDuration: req.body.borrowDuration || 14
+    });
+
+    // Категорияны қосу
+    const category = await Category.findByPk(req.body.categoryId);
+    if (category) {
+      book.dataValues.category = category;
+    }
 
     res.status(201).json({
       success: true,
       data: book,
+      message: 'Кітап сәтті жасалды'
     });
   } catch (err) {
+    // Егер ISBN валидациясы қатесі болса
+    if (err.name === 'SequelizeValidationError') {
+      const errors = err.errors.map(e => ({
+        field: e.path,
+        message: e.message
+      }));
+      
+      return res.status(400).json({
+        success: false,
+        errors,
+        message: errors[0].message
+      });
+    }
+    
+    // Қате болған жағдайда handler-ге жіберу
     next(err);
   }
 };
@@ -719,7 +783,7 @@ exports.deleteCategory = async (req, res, next) => {
     // Егер категорияда кітаптар болса, жоюға болмайды
     if (bookCount > 0) {
       return next(
-        new ErrorResponse(
+        new ErrorResponse( 
           `${bookCount} байланысты кітаптары бар категорияны жоюға болмайды`,
           400
         )
