@@ -31,6 +31,17 @@ const router = express.Router();
 router.use(protect);
 
 /**
+ * Тек әкімші немесе кітапханашыға арналған маршруттар
+ * 
+ * @description Жүйенің барлық қарызға алуларын басқаруға арналған маршруттар
+ * ВАЖНО: Сначала определите специфические маршруты, потом общие с параметрами
+ */
+router.get('/all', authorize('admin', 'librarian'), getAllBorrows);
+router.get('/check-overdue', authorize('admin', 'librarian'), checkOverdueBorrows);
+router.get('/send-reminders', authorize('admin', 'librarian'), sendDueReminders);
+router.get('/stats', authorize('admin', 'librarian'), getBorrowStats);
+
+/**
  * Пайдаланушы қарызға алу маршруттары
  * 
  * @description Пайдаланушының қарызға алуларын басқаруға арналған маршруттар
@@ -53,14 +64,8 @@ router.put('/:id/return', returnBook);
 router.put('/:id/extend', extendBorrow);
 
 /**
- * Тек әкімші немесе кітапханашыға арналған маршруттар
- * 
- * @description Жүйенің барлық қарызға алуларын басқаруға арналған маршруттар
+ * Жеке қарыз алуды жаңарту (админ)
  */
-router.get('/all', authorize('admin', 'librarian'), getAllBorrows);
 router.put('/:id', authorize('admin', 'librarian'), updateBorrow);
-router.get('/check-overdue', authorize('admin', 'librarian'), checkOverdueBorrows);
-router.get('/send-reminders', authorize('admin', 'librarian'), sendDueReminders);
-router.get('/stats', authorize('admin', 'librarian'), getBorrowStats);
 
 module.exports = router;

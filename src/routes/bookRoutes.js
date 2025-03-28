@@ -120,6 +120,7 @@ router
   .put(protect, authorize('admin', 'librarian'), categoryValidation, updateCategory)
   .delete(protect, authorize('admin', 'librarian'), deleteCategory);
 
+
 /**
  * Танымал және жаңа кітаптар үшін маршруттар
  * 

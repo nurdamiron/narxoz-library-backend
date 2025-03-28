@@ -39,19 +39,24 @@ async function initDatabase() {
     if (adminCount === 0) {
       console.log('Әдепкі әкімші жасалуда...');
       
-      await db.User.create({
-        name: 'Әкімші',
-        email: 'admin@narxoz.kz',
-        password: 'admin123', // модельде автоматты түрде шифрланады
-        phone: '+77001234567',
-        faculty: 'Әкімшілік',
-        specialization: 'Кітапхана',
-        studentId: 'ADMIN-001',
-        year: 'N/A',
-        role: 'admin'
-      });
-      
-      console.log('Әдепкі әкімші сәтті жасалды.');
+      try {
+        await db.User.create({
+          name: 'Әкімші',
+          email: 'admin@narxoz.kz',
+          password: 'admin123', // модельде автоматты түрде шифрланады
+          phone: '+77001234567',
+          faculty: 'Әкімшілік',
+          specialization: 'Кітапхана',
+          studentId: 'ADMIN-001',
+          year: 'N/A',
+          role: 'admin'
+        });
+        console.log('Әдепкі әкімші сәтті жасалды.');
+      } catch (error) {
+        console.error('Әкімші жасау кезінде қате:', error.message);
+      }
+    } else {
+      console.log('Әкімші пайдаланушы бұрыннан бар. Жаңа әкімші жасалмайды.');
     }
 
     // Әдепкі кітапханашы бар-жоғын тексеру, жоқ болса жасау
@@ -60,19 +65,24 @@ async function initDatabase() {
     if (librarianCount === 0) {
       console.log('Әдепкі кітапханашы жасалуда...');
       
-      await db.User.create({
-        name: 'Кітапханашы',
-        email: 'librarian@narxoz.kz',
-        password: 'Librarian123!', // модельде автоматты түрде шифрланады
-        phone: '+77007654321',
-        faculty: 'Кітапхана',
-        specialization: 'Оқырмандарға қызмет көрсету',
-        studentId: 'LIB-001',
-        year: 'N/A',
-        role: 'librarian'
-      });
-      
-      console.log('Әдепкі кітапханашы сәтті жасалды.');
+      try {
+        await db.User.create({
+          name: 'Кітапханашы',
+          email: 'librarian@narxoz.kz',
+          password: 'Librarian123!', // модельде автоматты түрде шифрланады
+          phone: '+77007654321',
+          faculty: 'Кітапхана',
+          specialization: 'Оқырмандарға қызмет көрсету',
+          studentId: 'LIB-001',
+          year: 'N/A',
+          role: 'librarian'
+        });
+        console.log('Әдепкі кітапханашы сәтті жасалды.');
+      } catch (error) {
+        console.error('Кітапханашы жасау кезінде қате:', error.message);
+      }
+    } else {
+      console.log('Кітапханашы пайдаланушы бұрыннан бар. Жаңа кітапханашы жасалмайды.');
     }
 
     // Категориялар бар-жоғын тексеру
@@ -105,18 +115,23 @@ async function initDatabase() {
         }
       ];
       
-      await db.Category.bulkCreate(defaultCategories);
-      
-      console.log('Әдепкі категориялар сәтті жасалды.');
+      try {
+        await db.Category.bulkCreate(defaultCategories);
+        console.log('Әдепкі категориялар сәтті жасалды.');
+      } catch (error) {
+        console.error('Категориялар жасау кезінде қате:', error.message);
+      }
+    } else {
+      console.log('Категориялар бұрыннан бар. Жаңа категориялар жасалмайды.');
     }
     
     console.log('Деректер қорын инициализациялау сәтті аяқталды.');
+    return true;
   } catch (error) {
     console.error('Деректер қорын инициализациялау кезінде қате орын алды:', error);
+    return false;
   }
 }
 
-// Модульді импортаған кезде инициализацияны іске қосу
-initDatabase();
-
+// Автоматты түрде іске қосылатын функцияны өшіру, тек модуль ретінде экспорттау
 module.exports = { initDatabase };
