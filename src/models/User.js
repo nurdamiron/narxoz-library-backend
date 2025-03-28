@@ -28,6 +28,18 @@ module.exports = (sequelize, DataTypes) => {
         }
       }
     },
+    role: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'user',
+      validate: {
+        isIn: {
+          args: [['admin', 'librarian']],
+          msg: 'Рөл admin немесе librarian болуы керек'
+        }
+      }
+    },
+
   }, {
     hooks: {
     }

@@ -37,7 +37,8 @@ exports.protect = asyncHandler(async (req, res, next) => {
   try {
     // Пайдаланушыны іздеу
     const user = await User.findOne({
-      where: { email: credentials.username }
+      where: { email: credentials.username },
+      attributes: ['id', 'name', 'password', 'role', 'createdAt', 'updatedAt'] // role өрісін қосу
     });
     
     // Пайдаланушының бар-жоғын тексеру
@@ -65,11 +66,16 @@ exports.protect = asyncHandler(async (req, res, next) => {
  */
 exports.authorize = (...roles) => {
   return (req, res, next) => {
+    // Әкімші email-і арқылы рөлді тексеру
+    if (req.user.email === 'admin@narxoz.kz') {
+      req.user.role = 'admin';
+    }
+    
     // Пайдаланушы рөлінің рұқсат етілген рөлдерде бар-жоғын тексеру
     if (!roles.includes(req.user.role)) {
       return next(
         new ErrorResponse(
-          `${req.user.role} рөлі бар пайдаланушыға бұл мазмұнға қол жеткізуге рұқсат жоқ`,
+          `${req.user.role || 'undefined'} рөлі бар пайдаланушыға бұл мазмұнға қол жеткізуге рұқсат жоқ`,
           403
         )
       );
