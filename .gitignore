@@ -3,6 +3,7 @@ node_modules/
 vendor/
 .pnp/
 .pnp.js
+.env
 
 # Environment variables
 .env
