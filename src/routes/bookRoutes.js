@@ -12,7 +12,7 @@ const {
   createBook,
   updateBook,
   deleteBook,
-  bookCoverUpload,
+  uploadBookCover,
   getPopularBooks,
   getNewBooks,
   updateInventory,
@@ -154,7 +154,7 @@ router.put(
   '/:id/cover',
   protect,
   authorize('admin', 'librarian'),
-  bookCoverUpload
+  uploadBookCover
 );
 
 /**

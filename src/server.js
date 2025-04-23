@@ -27,6 +27,7 @@ const userRoutes = require('./routes/userRoutes');
 const borrowRoutes = require('./routes/borrowRoutes');
 const bookmarkRoutes = require('./routes/bookmarkRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 // Express қосымшасын инициализациялау
 const app = express();
@@ -63,7 +64,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Статикалық файлдар үшін каталог орнату
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // API маршруттарын тіркеу
 app.use('/api/auth', authRoutes);
@@ -72,6 +73,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/borrows', borrowRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Басты маршрут
 app.get('/', (req, res) => {
@@ -92,7 +94,7 @@ app.get('/api/docs', (req, res) => {
 app.use(errorHandler);
 
 // Серверді іске қосу
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 const server = app.listen(PORT, () => {
   console.log(`Сервер ${process.env.NODE_ENV} режимінде ${PORT} портта іске қосылды`);

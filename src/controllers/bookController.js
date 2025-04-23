@@ -9,6 +9,42 @@ const Category = db.Category;
 const Bookmark = db.Bookmark;
 const User = db.User;
 const { validationResult } = require('express-validator');
+const multer = require('multer');
+const { Sequelize } = require('sequelize');
+
+// Настройка хранилища для загрузки обложек
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const uploadDir = path.join(__dirname, '../../public/uploads/covers');
+    // Убедимся, что директория существует
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function(req, file, cb) {
+    // Создаем уникальное имя файла
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `book-${req.params.id}-${uniqueSuffix}${ext}`);
+  }
+});
+
+// Фильтр файлов - только изображения
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new ErrorResponse('Тек сурет файлдарын жүктеуге рұқсат етілген', 400), false);
+  }
+};
+
+// Инициализация multer
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: fileFilter
+}).single('file');
 
 /**
  * @desc    Барлық кітаптарды алу
@@ -42,6 +78,7 @@ exports.getBooks = async (req, res, next) => {
           { title: { [Op.like]: `%${req.query.search}%` } },
           { author: { [Op.like]: `%${req.query.search}%` } },
           { description: { [Op.like]: `%${req.query.search}%` } },
+          { isbn: { [Op.like]: `%${req.query.search}%` } }, // ISBN бойынша іздеу
         ],
       };
     }
@@ -51,81 +88,70 @@ exports.getBooks = async (req, res, next) => {
       queryOptions.where.categoryId = req.query.categoryId;
     }
 
-    // Категория атауы бойынша сүзу
-    if (req.query.categoryName) {
-      const category = await Category.findOne({
-        where: { name: req.query.categoryName },
-      });
-      if (category) {
-        queryOptions.where.categoryId = category.id;
-      } else {
-        return res.status(200).json({
-          success: true,
-          count: 0,
-          data: [],
-        });
-      }
-    }
-
-    // Жариялану жылы аралығы бойынша сүзу
-    if (req.query.yearRange) {
-      const [startYear, endYear] = req.query.yearRange.split('-').map(Number);
-
-      if (startYear && endYear) {
-        // Аралық сұранысы
-        queryOptions.where.publicationYear = {
-          [Op.between]: [startYear, endYear],
-        };
-      } else if (startYear) {
-        // Тек startYear анықталған, startYear-дан кейінгі барлық кітаптар
-        queryOptions.where.publicationYear = {
-          [Op.gte]: startYear,
-        };
-      }
-    } else if (req.query.year) {
-      // Нақты жыл сұранысы
-      queryOptions.where.publicationYear = parseInt(req.query.year, 10);
-    }
-
-    // Тіл бойынша сүзу
+    // Тіл бойынша сүзу (егер көрсетілген болса)
     if (req.query.language) {
-      const languages = req.query.language.split(',');
-      queryOptions.where.language = {
-        [Op.in]: languages,
-      };
+      queryOptions.where.language = req.query.language;
     }
-
+    
+    // Жыл аралығы бойынша сүзу
+    if (req.query.yearFrom || req.query.yearTo) {
+      queryOptions.where.publicationYear = {};
+      
+      if (req.query.yearFrom) {
+        queryOptions.where.publicationYear[Op.gte] = parseInt(req.query.yearFrom, 10);
+      }
+      
+      if (req.query.yearTo) {
+        queryOptions.where.publicationYear[Op.lte] = parseInt(req.query.yearTo, 10);
+      }
+    }
+    
     // Қолжетімділік бойынша сүзу
     if (req.query.available === 'true') {
-      queryOptions.where.availableCopies = {
-        [Op.gt]: 0,
-      };
+      queryOptions.where.availableCopies = { [Op.gt]: 0 };
     }
-
+    
     // Сұрыптау
-    if (req.query.sort) {
-      const sortField = req.query.sort.startsWith('-')
-        ? req.query.sort.substring(1)
-        : req.query.sort;
-      const sortDirection = req.query.sort.startsWith('-') ? 'DESC' : 'ASC';
+    if (req.query.sortBy) {
+      const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
       
-      queryOptions.order = [[sortField, sortDirection]];
+      switch (req.query.sortBy) {
+        case 'title':
+          queryOptions.order = [['title', sortOrder]];
+          break;
+        case 'author':
+          queryOptions.order = [['author', sortOrder]];
+          break;
+        case 'year':
+          queryOptions.order = [['publicationYear', sortOrder]];
+          break;
+        case 'popularity':
+          // Popularity sorting would ideally use a counter of borrows/bookmarks
+          queryOptions.order = [['createdAt', sortOrder]];
+          break;
+        default:
+          queryOptions.order = [['publicationYear', 'DESC']];
+      }
     }
-
+    
     // Беттеу
     const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
+    const limit = parseInt(req.query.limit, 10) || 20;
     const offset = (page - 1) * limit;
-
+    
+    // Қосымша беттеу параметрлерін қосу
     queryOptions.limit = limit;
     queryOptions.offset = offset;
 
-    // Беттеумен кітаптарды алу
-    const { count, rows: books } = await Book.findAndCountAll(queryOptions);
-
-    // Аутентификацияланған пайдаланушылар үшін isBookmarked өрісін қосу
-    let booksWithBookmarkStatus = books;
+    // Кітаптардың жалпы санын есептеу
+    const count = await Book.count({ where: queryOptions.where });
     
+    // Кітаптарды алу
+    const books = await Book.findAll(queryOptions);
+
+    // Аутентификацияланған пайдаланушылар үшін бетбелгі жағдайын қосу
+    let booksWithBookmarkStatus = books;
+
     if (req.user) {
       const bookIds = books.map(book => book.id);
       const bookmarks = await Bookmark.findAll({
@@ -141,6 +167,16 @@ exports.getBooks = async (req, res, next) => {
       
       booksWithBookmarkStatus = books.map(book => {
         const bookObj = book.toJSON();
+        
+        // Добавляем полный URL до обложки если она есть
+        if (bookObj.coverUrl) {
+          // Проверяем, является ли путь абсолютным URL или относительным
+          if (!bookObj.coverUrl.startsWith('http')) {
+            const serverUrl = `${req.protocol}://${req.get('host')}`;
+            bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+          }
+        }
+        
         bookObj.isBookmarked = bookmarkedIds.includes(book.id);
         return bookObj;
       });
@@ -148,14 +184,14 @@ exports.getBooks = async (req, res, next) => {
 
     // Беттеу нәтижесі
     const pagination = {};
-
+    
     if (offset + books.length < count) {
       pagination.next = {
         page: page + 1,
         limit,
       };
     }
-
+    
     if (offset > 0) {
       pagination.prev = {
         page: page - 1,
@@ -166,9 +202,9 @@ exports.getBooks = async (req, res, next) => {
     res.status(200).json({
       success: true,
       count: booksWithBookmarkStatus.length,
-      pagination,
-      totalPages: Math.ceil(count / limit),
       total: count,
+      totalPages: Math.ceil(count / limit),
+      pagination,
       data: booksWithBookmarkStatus,
     });
   } catch (err) {
@@ -177,16 +213,17 @@ exports.getBooks = async (req, res, next) => {
 };
 
 /**
- * @desc    Жеке кітапты алу
+ * @desc    Нақты кітапты алу
  * @route   GET /api/books/:id
  * @access  Public
  * 
- * @description Бұл функция жеке кітапты ID бойынша іздейді және қайтарады.
- * Аутентификацияланған пайдаланушылар үшін кітаптың бетбелгіде бар-жоғын көрсетеді.
+ * @description Бұл функция ID бойынша нақты кітапты қайтарады.
+ * Аутентификацияланған пайдаланушылар үшін кітаптың бетбелгіде
+ * бар-жоғын көрсетеді.
  */
 exports.getBook = async (req, res, next) => {
   try {
-    // ID бойынша кітапты іздеу
+    // ID бойынша кітапты алу
     const book = await Book.findByPk(req.params.id, {
       include: [
         {
@@ -204,25 +241,33 @@ exports.getBook = async (req, res, next) => {
       );
     }
 
-    // Кітаптың пайдаланушы үшін бетбелгіде бар-жоғын тексеру
-    let isBookmarked = false;
+    // Кітапты объектке түрлендіру
+    const bookObj = book.toJSON();
+
+    // Добавляем полный URL до обложки если она есть
+    if (bookObj.coverUrl) {
+      // Проверяем, является ли путь абсолютным URL или относительным
+      if (!bookObj.coverUrl.startsWith('http')) {
+        const serverUrl = `${req.protocol}://${req.get('host')}`;
+        bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+      }
+    }
+
+    // Аутентификацияланған пайдаланушылар үшін бетбелгі жағдайын қосу
     if (req.user) {
       const bookmark = await Bookmark.findOne({
         where: {
-          bookId: req.params.id,
           userId: req.user.id,
+          bookId: book.id,
         },
       });
-      isBookmarked = !!bookmark;
-    }
 
-    // isBookmarked қосу үшін қарапайым объектке түрлендіру
-    const bookData = book.toJSON();
-    bookData.isBookmarked = isBookmarked;
+      bookObj.isBookmarked = !!bookmark;
+    }
 
     res.status(200).json({
       success: true,
-      data: bookData,
+      data: bookObj,
     });
   } catch (err) {
     next(err);
@@ -230,110 +275,58 @@ exports.getBook = async (req, res, next) => {
 };
 
 /**
- * @desc    Жаңа кітап жасау (тек Әкімші)
+ * @desc    Жаңа кітап жасау
  * @route   POST /api/books
  * @access  Private/Admin
  * 
- * @description Бұл функция жаңа кітапты жасайды. Тек әкімші пайдаланушылар
- * жаңа кітап жасай алады.
+ * @description Бұл функция жаңа кітап жасауға мүмкіндік береді.
+ * Тек әкімші пайдаланушылар жаңа кітаптар жасай алады.
  */
 exports.createBook = async (req, res, next) => {
   try {
-    // Валидация қателерін тексеру
+    // Валидация нәтижелерін тексеру
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         errors: errors.array(),
-        message: 'Валидация қатесі'
       });
     }
 
-    // ISBN дұрыстығын тексеру
-    if (req.body.isbn) {
-      const cleanedISBN = req.body.isbn.replace(/[-\s]/g, '');
-      
-      // ISBN ұзындығын тексеру
-      if (cleanedISBN.length !== 10 && cleanedISBN.length !== 13) {
-        return res.status(400).json({
-          success: false,
-          message: 'Жарамды ISBN нөмірін енгізіңіз'
-        });
-      }
-      
-      // ISBN форматын тексеру
-      if (cleanedISBN.length === 10) {
-        if (!/^[0-9]{9}[0-9X]$/.test(cleanedISBN)) {
-          return res.status(400).json({
-            success: false,
-            message: 'Жарамды ISBN нөмірін енгізіңіз'
-          });
-        }
-      } else if (!/^[0-9]{13}$/.test(cleanedISBN)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Жарамды ISBN нөмірін енгізіңіз'
-        });
+    // Категория ID болса, ол өмір сүретінін тексеру
+    if (req.body.categoryId) {
+      const category = await Category.findByPk(req.body.categoryId);
+      if (!category) {
+        return next(
+          new ErrorResponse(`${req.body.categoryId} ID-мен категория табылмады`, 404)
+        );
       }
     }
 
-    // Кітап жасау
-    const book = await Book.create({
-      title: req.body.title,
-      author: req.body.author,
-      categoryId: req.body.categoryId,
-      description: req.body.description,
-      publicationYear: req.body.publicationYear,
-      language: req.body.language,
-      totalCopies: req.body.totalCopies || 1,
-      availableCopies: req.body.availableCopies || req.body.totalCopies || 1,
-      isbn: req.body.isbn || null,
-      borrowDuration: req.body.borrowDuration || 14
-    });
-
-    // Категорияны қосу
-    const category = await Category.findByPk(req.body.categoryId);
-    if (category) {
-      book.dataValues.category = category;
-    }
+    // Жаңа кітап жасау
+    const book = await Book.create(req.body);
 
     res.status(201).json({
       success: true,
       data: book,
-      message: 'Кітап сәтті жасалды'
     });
   } catch (err) {
-    // Егер ISBN валидациясы қатесі болса
-    if (err.name === 'SequelizeValidationError') {
-      const errors = err.errors.map(e => ({
-        field: e.path,
-        message: e.message
-      }));
-      
-      return res.status(400).json({
-        success: false,
-        errors,
-        message: errors[0].message
-      });
-    }
-    
-    // Қате болған жағдайда handler-ге жіберу
     next(err);
   }
 };
 
 /**
- * @desc    Кітапты жаңарту (тек Әкімші)
+ * @desc    Кітапты жаңарту
  * @route   PUT /api/books/:id
  * @access  Private/Admin
  * 
- * @description Бұл функция кітап мәліметтерін жаңартады. Тек әкімші пайдаланушылар
- * кітаптарды жаңарта алады.
+ * @description Бұл функция бар кітапты жаңартуға мүмкіндік береді.
+ * Тек әкімші пайдаланушылар кітаптарды жаңарта алады.
  */
 exports.updateBook = async (req, res, next) => {
   try {
-    // ID бойынша кітапты іздеу
-    let book = await Book.findByPk(req.params.id);
+    // ID бойынша кітапты алу
+    const book = await Book.findByPk(req.params.id);
 
     // Кітап табылмаса қате қайтару
     if (!book) {
@@ -342,7 +335,7 @@ exports.updateBook = async (req, res, next) => {
       );
     }
 
-    // Егер категория жаңартылса, оның бар-жоғын тексеру
+    // Категория ID болса, ол өмір сүретінін тексеру
     if (req.body.categoryId) {
       const category = await Category.findByPk(req.body.categoryId);
       if (!category) {
@@ -355,17 +348,6 @@ exports.updateBook = async (req, res, next) => {
     // Кітапты жаңарту
     await book.update(req.body);
 
-    // Байланыстары бар кітап мәліметтерін жаңарту
-    book = await Book.findByPk(req.params.id, {
-      include: [
-        {
-          model: Category,
-          as: 'category',
-          attributes: ['id', 'name'],
-        },
-      ],
-    });
-
     res.status(200).json({
       success: true,
       data: book,
@@ -376,11 +358,11 @@ exports.updateBook = async (req, res, next) => {
 };
 
 /**
- * @desc    Кітапты жою (тек Әкімші)
+ * @desc    Кітапты жою
  * @route   DELETE /api/books/:id
  * @access  Private/Admin
  * 
- * @description Бұл функция кітапты және оның байланысты жазбаларын жояды.
+ * @description Бұл функция кітапты дерекқордан жояды.
  * Тек әкімші пайдаланушылар кітаптарды жоя алады.
  */
 exports.deleteBook = async (req, res, next) => {
@@ -395,14 +377,9 @@ exports.deleteBook = async (req, res, next) => {
       );
     }
 
-    // Байланысты бетбелгілерді жою
-    await Bookmark.destroy({
-      where: { bookId: req.params.id },
-    });
-
-    // Кітап мұқабасын жою (егер ол бар және әдепкі емес болса)
-    if (book.cover && book.cover !== 'default-book-cover.jpg') {
-      const coverPath = path.join(__dirname, '../../src/uploads/books', book.cover);
+    // Если у книги есть обложка, удаляем файл
+    if (book.coverUrl && !book.coverUrl.startsWith('http')) {
+      const coverPath = path.join(__dirname, '../../public', book.coverUrl);
       if (fs.existsSync(coverPath)) {
         fs.unlinkSync(coverPath);
       }
@@ -425,13 +402,13 @@ exports.deleteBook = async (req, res, next) => {
  * @route   PUT /api/books/:id/cover
  * @access  Private/Admin
  * 
- * @description Бұл функция кітап мұқабасын жүктеуге мүмкіндік береді.
+ * @description Бұл функция кітап үшін жаңа мұқаба суретін жүктеуге мүмкіндік береді.
  * Тек әкімші пайдаланушылар кітап мұқабаларын жүктей алады.
  */
-exports.bookCoverUpload = async (req, res, next) => {
+exports.uploadBookCover = async (req, res, next) => {
   try {
     // ID бойынша кітапты іздеу
-    const book = await Book.findByPk(req.params.id);
+    let book = await Book.findByPk(req.params.id);
 
     // Кітап табылмаса қате қайтару
     if (!book) {
@@ -440,182 +417,41 @@ exports.bookCoverUpload = async (req, res, next) => {
       );
     }
 
-    // Файл жүктелгенін тексеру
-    if (!req.files || !req.files.file) {
-      return next(new ErrorResponse('Файл жүктеңіз', 400));
-    }
-
-    const file = req.files.file;
-
-    // Файлдың сурет екенін тексеру
-    if (!file.mimetype.startsWith('image')) {
-      return next(new ErrorResponse('Тек сурет файлдарын жүктеңіз', 400));
-    }
-
-    // Файл өлшемін тексеру
-    const maxSize = process.env.MAX_FILE_UPLOAD || 1024 * 1024; // Әдепкісі 1МБ
-    if (file.size > maxSize) {
-      return next(
-        new ErrorResponse(
-          `${maxSize / (1024 * 1024)}МБ-дан кіші суретті жүктеңіз`,
-          400
-        )
-      );
-    }
-
-    // Егер жоқ болса, жүктеулер директориясын жасау
-    const uploadsDir = path.join(__dirname, '../../src/uploads/books');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    // Арнайы файл атын жасау
-    const fileExt = path.extname(file.name);
-    file.name = `book_cover_${book.id}${fileExt}`;
-    const filePath = path.join(uploadsDir, file.name);
-
-    // Ескі мұқабаны жою (егер ол бар және әдепкі емес болса)
-    if (book.cover && book.cover !== 'default-book-cover.jpg') {
-      const oldCoverPath = path.join(uploadsDir, book.cover);
-      if (fs.existsSync(oldCoverPath)) {
-        fs.unlinkSync(oldCoverPath);
-      }
-    }
-
-    // Файл жүктеу
-    file.mv(filePath, async (err) => {
+    // Загрузка файла с использованием multer
+    upload(req, res, async (err) => {
       if (err) {
-        console.error(err);
-        return next(new ErrorResponse('Файл жүктеу кезінде қате орын алды', 500));
+        return next(new ErrorResponse(`Файл жүктеу қатесі: ${err.message}`, 400));
       }
 
-      // Кітаптың мұқаба өрісін жаңарту
-      await book.update({ cover: file.name });
+      if (!req.file) {
+        return next(new ErrorResponse('Файл таңдаңыз', 400));
+      }
+
+      // Формирование относительного пути для сохранения в БД
+      const relativePath = `/uploads/covers/${req.file.filename}`;
+
+      // Если у книги уже была обложка, удаляем старый файл
+      if (book.coverUrl && !book.coverUrl.startsWith('http')) {
+        const oldCoverPath = path.join(__dirname, '../../public', book.coverUrl);
+        if (fs.existsSync(oldCoverPath)) {
+          fs.unlinkSync(oldCoverPath);
+        }
+      }
+
+      // Обновление пути к обложке в БД
+      book.coverUrl = relativePath;
+      await book.save();
+
+      // Формирование полного URL для фронтенда
+      const serverUrl = `${req.protocol}://${req.get('host')}`;
+      const fullCoverUrl = `${serverUrl}${relativePath}`;
 
       res.status(200).json({
         success: true,
-        data: file.name,
+        data: {
+          coverUrl: fullCoverUrl
+        }
       });
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * @desc    Танымал кітаптарды алу
- * @route   GET /api/books/popular
- * @access  Public
- * 
- * @description Бұл функция ең жоғары рейтингі бар кітаптарды қайтарады.
- */
-exports.getPopularBooks = async (req, res, next) => {
-  try {
-    const limit = parseInt(req.query.limit, 10) || 4;
-
-    // Рейтингі ең жоғары кітаптарды алу
-    const books = await Book.findAll({
-      where: {
-        rating: { [Op.gt]: 0 },
-      },
-      order: [
-        ['rating', 'DESC'],
-        ['reviewCount', 'DESC'],
-      ],
-      limit,
-      include: [
-        {
-          model: Category,
-          as: 'category',
-          attributes: ['id', 'name'],
-        },
-      ],
-    });
-
-    // Аутентификацияланған пайдаланушылар үшін isBookmarked өрісін қосу
-    let booksWithBookmarkStatus = books;
-    
-    if (req.user) {
-      const bookIds = books.map(book => book.id);
-      const bookmarks = await Bookmark.findAll({
-        where: {
-          userId: req.user.id,
-          bookId: {
-            [Op.in]: bookIds,
-          },
-        },
-      });
-
-      const bookmarkedIds = bookmarks.map(bookmark => bookmark.bookId);
-      
-      booksWithBookmarkStatus = books.map(book => {
-        const bookObj = book.toJSON();
-        bookObj.isBookmarked = bookmarkedIds.includes(book.id);
-        return bookObj;
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      count: booksWithBookmarkStatus.length,
-      data: booksWithBookmarkStatus,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * @desc    Жаңа кітаптарды алу
- * @route   GET /api/books/new
- * @access  Public
- * 
- * @description Бұл функция жақында қосылған кітаптарды қайтарады.
- */
-exports.getNewBooks = async (req, res, next) => {
-  try {
-    const limit = parseInt(req.query.limit, 10) || 4;
-
-    // Ең соңғы қосылған кітаптарды алу
-    const books = await Book.findAll({
-      order: [['createdAt', 'DESC']],
-      limit,
-      include: [
-        {
-          model: Category,
-          as: 'category',
-          attributes: ['id', 'name'],
-        },
-      ],
-    });
-
-    // Аутентификацияланған пайдаланушылар үшін isBookmarked өрісін қосу
-    let booksWithBookmarkStatus = books;
-    
-    if (req.user) {
-      const bookIds = books.map(book => book.id);
-      const bookmarks = await Bookmark.findAll({
-        where: {
-          userId: req.user.id,
-          bookId: {
-            [Op.in]: bookIds,
-          },
-        },
-      });
-
-      const bookmarkedIds = bookmarks.map(bookmark => bookmark.bookId);
-      
-      booksWithBookmarkStatus = books.map(book => {
-        const bookObj = book.toJSON();
-        bookObj.isBookmarked = bookmarkedIds.includes(book.id);
-        return bookObj;
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      count: booksWithBookmarkStatus.length,
-      data: booksWithBookmarkStatus,
     });
   } catch (err) {
     next(err);
@@ -760,8 +596,8 @@ exports.updateCategory = async (req, res, next) => {
  * @route   DELETE /api/books/categories/:id
  * @access  Private/Admin
  * 
- * @description Бұл функция кітап категориясын жояды, егер оған байланысты
- * кітаптар болмаса. Тек әкімші пайдаланушылар категорияларды жоя алады.
+ * @description Бұл функция кітап категориясын жояды.
+ * Тек әкімші пайдаланушылар категорияларды жоя алады.
  */
 exports.deleteCategory = async (req, res, next) => {
   try {
@@ -775,16 +611,17 @@ exports.deleteCategory = async (req, res, next) => {
       );
     }
 
-    // Категорияда кітаптар бар-жоғын тексеру
-    const bookCount = await Book.count({
-      where: { categoryId: req.params.id },
+    // Бұл категорияға байланысты кітаптар бар-жоғын тексеру
+    const booksCount = await Book.count({
+      where: {
+        categoryId: category.id,
+      },
     });
 
-    // Егер категорияда кітаптар болса, жоюға болмайды
-    if (bookCount > 0) {
+    if (booksCount > 0) {
       return next(
-        new ErrorResponse( 
-          `${bookCount} байланысты кітаптары бар категорияны жоюға болмайды`,
+        new ErrorResponse(
+          `Бұл категорияға байланысты ${booksCount} кітап бар. Алдымен оларды басқа категорияға ауыстырыңыз.`,
           400
         )
       );
@@ -796,6 +633,108 @@ exports.deleteCategory = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {},
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * @desc    Танымал кітаптарды алу
+ * @route   GET /api/books/popular
+ * @access  Public
+ * 
+ * @description Бұл функция ең танымал кітаптарды қайтарады.
+ * Танымалдылық бетбелгілер саны бойынша анықталады.
+ */
+exports.getPopularBooks = async (req, res, next) => {
+  try {
+    // Бетбелгілер саны бойынша сұрыпталған кітаптарды алу
+    const books = await Book.findAll({
+      include: [
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name'],
+        },
+        {
+          model: Bookmark,
+          attributes: [],
+        }
+      ],
+      attributes: {
+        include: [
+          [Sequelize.literal('(SELECT COUNT(*) FROM Bookmarks WHERE Bookmarks.bookId = Book.id)'), 'bookmarkCount']
+        ]
+      },
+      order: [
+        [Sequelize.literal('bookmarkCount'), 'DESC']
+      ],
+      limit: 10
+    });
+
+    // Кітаптардың мұқаба URL-дарын толық URL-дарға түрлендіру
+    const booksWithFullUrls = books.map(book => {
+      const bookObj = book.toJSON();
+      
+      if (bookObj.coverUrl && !bookObj.coverUrl.startsWith('http')) {
+        const serverUrl = `${req.protocol}://${req.get('host')}`;
+        bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+      }
+      
+      return bookObj;
+    });
+
+    res.status(200).json({
+      success: true,
+      count: booksWithFullUrls.length,
+      data: booksWithFullUrls,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * @desc    Жаңа қосылған кітаптарды алу
+ * @route   GET /api/books/new
+ * @access  Public
+ * 
+ * @description Бұл функция соңғы қосылған кітаптарды қайтарады.
+ */
+exports.getNewBooks = async (req, res, next) => {
+  try {
+    // Соңғы қосылған кітаптарды алу
+    const books = await Book.findAll({
+      include: [
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name'],
+        }
+      ],
+      order: [
+        ['createdAt', 'DESC']
+      ],
+      limit: 10
+    });
+
+    // Кітаптардың мұқаба URL-дарын толық URL-дарға түрлендіру
+    const booksWithFullUrls = books.map(book => {
+      const bookObj = book.toJSON();
+      
+      if (bookObj.coverUrl && !bookObj.coverUrl.startsWith('http')) {
+        const serverUrl = `${req.protocol}://${req.get('host')}`;
+        bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+      }
+      
+      return bookObj;
+    });
+
+    res.status(200).json({
+      success: true,
+      count: booksWithFullUrls.length,
+      data: booksWithFullUrls,
     });
   } catch (err) {
     next(err);

@@ -57,6 +57,35 @@ const updatePasswordValidation = [
     .withMessage('Жаңа құпия сөз кемінде 6 таңбадан тұруы керек')
 ];
 
+/**
+ * Әкімші тіркеу валидациясы
+ * 
+ * @description Жаңа әкімші немесе кітапханашы тіркеу кезіндегі деректерді тексеру ережелері.
+ * Аты, email, құпия сөз және рөл өрістері міндетті.
+ * Email дұрыс форматта және бірегей болуы керек.
+ * Құпия сөз кемінде 6 таңбадан тұруы керек.
+ * Рөл тек админ немесе кітапханашы болуы керек.
+ */
+const registerAdminValidation = [
+  body('name')
+    .notEmpty()
+    .withMessage('Аты-жөні міндетті')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Аты 2-50 таңба аралығында болуы керек'),
+  body('email')
+    .isEmail()
+    .withMessage('Дұрыс email енгізіңіз')
+    .normalizeEmail(),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Құпия сөз кем дегенде 6 таңбадан тұруы керек'),
+  body('role')
+    .notEmpty()
+    .withMessage('Рөл міндетті')
+    .isIn(['admin', 'librarian'])
+    .withMessage('Рөл тек "admin" немесе "librarian" болуы керек')
+];
+
 // Пайдаланушы кіру
 router.post('/login', loginValidation, login);
 
@@ -74,6 +103,7 @@ router.post(
   '/register-admin',
   protect,
   authorize('admin'),
+  registerAdminValidation,
   registerAdmin
 );
 
