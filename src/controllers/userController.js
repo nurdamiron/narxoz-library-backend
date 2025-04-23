@@ -89,7 +89,10 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
   
   // Аты бойынша іздеу
   if (req.query.search) {
-    query.name = { [Op.like]: `%${req.query.search}%` };
+    query[Op.or] = [
+      { firstName: { [Op.like]: `%${req.query.search}%` } },
+      { lastName: { [Op.like]: `%${req.query.search}%` } }
+    ];
   }
   
   // Беттеу параметрлері
@@ -260,7 +263,8 @@ exports.getMe = asyncHandler(async (req, res, next) => {
 exports.updateMe = asyncHandler(async (req, res, next) => {
   // Жаңартуға рұқсат етілген өрістерді анықтау
   const fieldsToUpdate = {
-    name: req.body.name,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
     email: req.body.email,
     phone: req.body.phone,
     faculty: req.body.faculty,

@@ -169,11 +169,11 @@ exports.getBooks = async (req, res, next) => {
         const bookObj = book.toJSON();
         
         // Добавляем полный URL до обложки если она есть
-        if (bookObj.coverUrl) {
+        if (bookObj.cover) {
           // Проверяем, является ли путь абсолютным URL или относительным
-          if (!bookObj.coverUrl.startsWith('http')) {
+          if (!bookObj.cover.startsWith('http')) {
             const serverUrl = `${req.protocol}://${req.get('host')}`;
-            bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+            bookObj.cover = `${serverUrl}${bookObj.cover}`;
           }
         }
         
@@ -245,11 +245,11 @@ exports.getBook = async (req, res, next) => {
     const bookObj = book.toJSON();
 
     // Добавляем полный URL до обложки если она есть
-    if (bookObj.coverUrl) {
+    if (bookObj.cover) {
       // Проверяем, является ли путь абсолютным URL или относительным
-      if (!bookObj.coverUrl.startsWith('http')) {
+      if (!bookObj.cover.startsWith('http')) {
         const serverUrl = `${req.protocol}://${req.get('host')}`;
-        bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+        bookObj.cover = `${serverUrl}${bookObj.cover}`;
       }
     }
 
@@ -378,8 +378,8 @@ exports.deleteBook = async (req, res, next) => {
     }
 
     // Если у книги есть обложка, удаляем файл
-    if (book.coverUrl && !book.coverUrl.startsWith('http')) {
-      const coverPath = path.join(__dirname, '../../public', book.coverUrl);
+    if (book.cover && !book.cover.startsWith('http')) {
+      const coverPath = path.join(__dirname, '../../public', book.cover);
       if (fs.existsSync(coverPath)) {
         fs.unlinkSync(coverPath);
       }
@@ -431,15 +431,15 @@ exports.uploadBookCover = async (req, res, next) => {
       const relativePath = `/uploads/covers/${req.file.filename}`;
 
       // Если у книги уже была обложка, удаляем старый файл
-      if (book.coverUrl && !book.coverUrl.startsWith('http')) {
-        const oldCoverPath = path.join(__dirname, '../../public', book.coverUrl);
+      if (book.cover && !book.cover.startsWith('http')) {
+        const oldCoverPath = path.join(__dirname, '../../public', book.cover);
         if (fs.existsSync(oldCoverPath)) {
           fs.unlinkSync(oldCoverPath);
         }
       }
 
       // Обновление пути к обложке в БД
-      book.coverUrl = relativePath;
+      book.cover = relativePath;
       await book.save();
 
       // Формирование полного URL для фронтенда
@@ -449,7 +449,7 @@ exports.uploadBookCover = async (req, res, next) => {
       res.status(200).json({
         success: true,
         data: {
-          coverUrl: fullCoverUrl
+          cover: fullCoverUrl
         }
       });
     });
@@ -659,6 +659,7 @@ exports.getPopularBooks = async (req, res, next) => {
         },
         {
           model: Bookmark,
+          as: 'bookmarks',
           attributes: [],
         }
       ],
@@ -677,9 +678,9 @@ exports.getPopularBooks = async (req, res, next) => {
     const booksWithFullUrls = books.map(book => {
       const bookObj = book.toJSON();
       
-      if (bookObj.coverUrl && !bookObj.coverUrl.startsWith('http')) {
+      if (bookObj.cover && !bookObj.cover.startsWith('http')) {
         const serverUrl = `${req.protocol}://${req.get('host')}`;
-        bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+        bookObj.cover = `${serverUrl}${bookObj.cover}`;
       }
       
       return bookObj;
@@ -723,9 +724,9 @@ exports.getNewBooks = async (req, res, next) => {
     const booksWithFullUrls = books.map(book => {
       const bookObj = book.toJSON();
       
-      if (bookObj.coverUrl && !bookObj.coverUrl.startsWith('http')) {
+      if (bookObj.cover && !bookObj.cover.startsWith('http')) {
         const serverUrl = `${req.protocol}://${req.get('host')}`;
-        bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+        bookObj.cover = `${serverUrl}${bookObj.cover}`;
       }
       
       return bookObj;

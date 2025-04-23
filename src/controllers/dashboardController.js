@@ -47,7 +47,7 @@ exports.getDashboardStats = async (req, res, next) => {
         {
           model: Book,
           as: 'book',
-          attributes: ['id', 'title', 'author', 'cover', 'coverUrl'],
+          attributes: ['id', 'title', 'author', 'cover'],
           include: [
             {
               model: Category,
@@ -63,9 +63,9 @@ exports.getDashboardStats = async (req, res, next) => {
     const booksWithFullUrls = mostBorrowedBooks.map(item => {
       const itemObj = item.toJSON();
       
-      if (itemObj.book && itemObj.book.coverUrl && !itemObj.book.coverUrl.startsWith('http')) {
+      if (itemObj.book && itemObj.book.cover && !itemObj.book.cover.startsWith('http')) {
         const serverUrl = `${req.protocol}://${req.get('host')}`;
-        itemObj.book.coverUrl = `${serverUrl}${itemObj.book.coverUrl}`;
+        itemObj.book.cover = `${serverUrl}${itemObj.book.cover}`;
       }
       
       return itemObj;
@@ -84,7 +84,7 @@ exports.getDashboardStats = async (req, res, next) => {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'studentId', 'avatar', 'faculty'],
+          attributes: ['id', 'firstName', 'lastName', 'email', 'studentId', 'faculty'],
         },
       ],
     });
@@ -108,9 +108,9 @@ exports.getDashboardStats = async (req, res, next) => {
     const newBooksWithFullUrls = newBooks.map(book => {
       const bookObj = book.toJSON();
       
-      if (bookObj.coverUrl && !bookObj.coverUrl.startsWith('http')) {
+      if (bookObj.cover && !bookObj.cover.startsWith('http')) {
         const serverUrl = `${req.protocol}://${req.get('host')}`;
-        bookObj.coverUrl = `${serverUrl}${bookObj.coverUrl}`;
+        bookObj.cover = `${serverUrl}${bookObj.cover}`;
       }
       
       return bookObj;

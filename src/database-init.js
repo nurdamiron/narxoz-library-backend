@@ -28,61 +28,56 @@ async function initDatabase() {
     // Барлық модельдерді деректер қорымен синхрондау
     // force: true - бар кестелерді жояды (абайлап қолданыңыз!)
     // force: false - кестелер жоқ болса ғана жасайды
-    await db.sequelize.sync({ force: false });
+    await db.sequelize.sync({ force: true });
     
     console.log('Деректер қоры синхрондау сәтті аяқталды.');
     
-    // Жүйеде әкімші бар-жоғын тексеру
-    const adminCount = await db.User.count({ where: { role: 'admin' } });
+    // Жүйеде пайдаланушылар бар-жоғын тексеру
+    const userCount = await db.User.count();
     
-    // Егер әкімші жоқ болса, әдепкі әкімшіні жасау
-    if (adminCount === 0) {
+    // Егер пайдаланушылар жоқ болса, әдепкі пайдаланушыларды жасау
+    if (userCount === 0) {
       console.log('Әдепкі әкімші жасалуда...');
       
       try {
         await db.User.create({
-          name: 'Әкімші',
+          username: 'admin',
+          firstName: 'Әкімші',
+          lastName: 'Жүйе',
           email: 'admin@narxoz.kz',
-          password: 'admin123', // модельде автоматты түрде шифрланады
-          phone: '+77001234567',
+          password: 'admin123',
+          phoneNumber: '+77001234567',
           faculty: 'Әкімшілік',
           specialization: 'Кітапхана',
           studentId: 'ADMIN-001',
-          year: 'N/A',
           role: 'admin'
         });
         console.log('Әдепкі әкімші сәтті жасалды.');
       } catch (error) {
         console.error('Әкімші жасау кезінде қате:', error.message);
       }
-    } else {
-      console.log('Әкімші пайдаланушы бұрыннан бар. Жаңа әкімші жасалмайды.');
-    }
-
-    // Әдепкі кітапханашы бар-жоғын тексеру, жоқ болса жасау
-    const librarianCount = await db.User.count({ where: { role: 'librarian' } });
     
-    if (librarianCount === 0) {
-      console.log('Әдепкі кітапханашы жасалуда...');
+      console.log('Әдепкі студент жасалуда...');
       
       try {
         await db.User.create({
-          name: 'Кітапханашы',
-          email: 'librarian@narxoz.kz',
-          password: 'Librarian123!', // модельде автоматты түрде шифрланады
-          phone: '+77007654321',
-          faculty: 'Кітапхана',
-          specialization: 'Оқырмандарға қызмет көрсету',
-          studentId: 'LIB-001',
-          year: 'N/A',
-          role: 'librarian'
+          username: 'student',
+          firstName: 'Оқушы',
+          lastName: 'Тестов',
+          email: 'student@narxoz.kz',
+          password: 'student123',
+          phoneNumber: '+77007654321',
+          faculty: 'Технология',
+          specialization: 'Компьютерлік ғылымдар',
+          studentId: 'STU-001',
+          role: 'student'
         });
-        console.log('Әдепкі кітапханашы сәтті жасалды.');
+        console.log('Әдепкі студент сәтті жасалды.');
       } catch (error) {
-        console.error('Кітапханашы жасау кезінде қате:', error.message);
+        console.error('Студент жасау кезінде қате:', error.message);
       }
     } else {
-      console.log('Кітапханашы пайдаланушы бұрыннан бар. Жаңа кітапханашы жасалмайды.');
+      console.log('Пайдаланушылар бұрыннан бар. Жаңа пайдаланушылар жасалмайды.');
     }
 
     // Категориялар бар-жоғын тексеру

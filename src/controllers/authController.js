@@ -9,7 +9,7 @@ const User = db.User;
  * @route   POST /api/auth/login
  * @access  Public
  * @description Бұл функция пайдаланушының жүйеге кіруін өңдейді. 
- * Пайдаланушы email және құпия сөзді жібереді, жүйе оларды деректер
+ * Пайдаланушы логин және құпия сөзді жібереді, жүйе оларды деректер
  * қорындағы мәліметтермен салыстырады. Аутентификация сәтті болған 
  * жағдайда, пайдаланушы туралы ақпаратты қайтарады. JWT токені 
  * пайдаланылмайды, әр сұраныс логин/құпия сөзді тікелей тексереді.
@@ -44,12 +44,21 @@ exports.login = async (req, res, next) => {
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
 
-    // Құпия сөзді тікелей салыстыру
-    const isMatch = password === user.password;
+    // Пайдаланушы бұғатталған ба тексеру
+    if (user.isBlocked) {
+      return next(new ErrorResponse('Сіздің тіркелгіңіз бұғатталған. Әкімшіге хабарласыңыз', 403));
+    }
 
-    if (!isMatch) {
+    // Құпия сөзді тікелей салыстыру
+    if (password !== user.password) {
+      console.log('Password mismatch:', password, user.password);
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
+
+    // Соңғы кіру уақытын жаңарту
+    await user.update({
+      lastLogin: new Date()
+    });
 
     // Пайдаланушы ақпаратын қайтару (құпия сөзсіз)
     const userWithoutPassword = user.toJSON();
@@ -106,7 +115,8 @@ exports.getMe = async (req, res, next) => {
 exports.updateDetails = async (req, res, next) => {
   try {
     const fieldsToUpdate = {
-      name: req.body.name,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
       email: req.body.email,
       phone: req.body.phone,
       faculty: req.body.faculty,
@@ -143,16 +153,15 @@ exports.updateDetails = async (req, res, next) => {
 };
 
 /**
- * @desc    Әкімші немесе кітапханашы тіркеу (тек бас әкімшілер үшін)
- * @route   POST /api/auth/register-admin
+ * @desc    Әкімші немесе студент тіркеу (тек әкімшілер үшін)
+ * @route   POST /api/auth/register
  * @access  Private/Admin
- * @description Бұл функция жаңа әкімші немесе кітапханашы пайдаланушысын
+ * @description Бұл функция жаңа әкімші немесе студент пайдаланушысын
  * жасауға мүмкіндік береді. Тек "admin" рөлі бар пайдаланушылар ғана
- * осы функцияны пайдалана алады. Жаңа пайдаланушы үшін аты, email,
- * құпия сөзі және рөлі (admin немесе librarian) көрсетілуі керек.
- * Басқа өрістер автоматты түрде әдепкі мәндермен толтырылады.
+ * осы функцияны пайдалана алады. Жаңа пайдаланушы үшін логин, құпия сөз,
+ * аты-жөні, email және рөлі (admin немесе student) көрсетілуі керек.
  */
-exports.registerAdmin = async (req, res, next) => {
+exports.registerUser = async (req, res, next) => {
   try {
     // Валидация нәтижелерін тексеру
     const errors = validationResult(req);
@@ -166,16 +175,33 @@ exports.registerAdmin = async (req, res, next) => {
       });
     }
 
-    // Тек әкімші басқа әкімшілерді жасай алады
+    // Тек әкімші ғана жаңа пайдаланушыларды тіркей алады
     if (req.user.role !== 'admin') {
-      return next(new ErrorResponse('Әкімші тіркелгілерін жасауға рұқсатыңыз жоқ', 403));
+      return next(new ErrorResponse('Пайдаланушыларды тіркеуге рұқсатыңыз жоқ', 403));
     }
 
-    const { name, email, password, role } = req.body;
+    const { 
+      username, 
+      password, 
+      firstName, 
+      lastName, 
+      email, 
+      phoneNumber, 
+      role, 
+      faculty, 
+      specialization, 
+      studentId 
+    } = req.body;
 
     // Міндетті өрістерді тексеру
-    if (!name || !email || !password || !role) {
+    if (!username || !password || !firstName || !lastName || !email || !role) {
       return next(new ErrorResponse('Барлық міндетті өрістерді толтырыңыз', 400));
+    }
+
+    // Логиннің бірегейлігін тексеру
+    const existingUsername = await User.findOne({ where: { username } });
+    if (existingUsername) {
+      return next(new ErrorResponse('Бұл логин бұрыннан бар, басқа логин таңдаңыз', 400));
     }
 
     // Email форматын тексеру
@@ -184,15 +210,23 @@ exports.registerAdmin = async (req, res, next) => {
       return next(new ErrorResponse('Жарамды email енгізіңіз', 400));
     }
 
-    // Email бұрыннан бар-жоғын тексеру
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return next(new ErrorResponse('Бұл email пайдаланушы тіркелгісі бұрыннан бар', 400));
+    // Email бірегейлігін тексеру
+    const existingEmail = await User.findOne({ where: { email } });
+    if (existingEmail) {
+      return next(new ErrorResponse('Бұл email бұрыннан тіркелген', 400));
     }
 
-    // Рөлдің әкімші немесе кітапханашы екенін тексеру
-    if (role !== 'admin' && role !== 'librarian') {
-      return next(new ErrorResponse('Жарамсыз рөл. Тек "admin" немесе "librarian" рөлі болуы керек', 400));
+    // Студенттік билет нөмірінің бірегейлігін тексеру (егер көрсетілген болса)
+    if (studentId) {
+      const existingStudentId = await User.findOne({ where: { studentId } });
+      if (existingStudentId) {
+        return next(new ErrorResponse('Бұл студенттік билет нөмірі бұрыннан тіркелген', 400));
+      }
+    }
+
+    // Рөлдің жарамды екенін тексеру
+    if (role !== 'admin' && role !== 'student') {
+      return next(new ErrorResponse('Жарамсыз рөл. Тек "admin" немесе "student" рөлі болуы керек', 400));
     }
 
     // Құпия сөз ұзындығын тексеру
@@ -200,17 +234,20 @@ exports.registerAdmin = async (req, res, next) => {
       return next(new ErrorResponse('Құпия сөз кем дегенде 6 таңбадан тұруы керек', 400));
     }
 
-    // Әкімші пайдаланушысын жасау
+    // Жаңа пайдаланушыны жасау
     const user = await User.create({
-      name,
-      email,
+      username,
       password,
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
       role,
-      // Әкімші үшін әдепкі өрістер
-      faculty: req.body.faculty || 'Әкімшілік',
-      specialization: req.body.specialization || 'Кітапхана басқару',
-      studentId: req.body.studentId || `ADMIN-${Math.floor(1000 + Math.random() * 9000)}`,
-      year: req.body.year || 'N/A'
+      faculty: faculty || null,
+      specialization: specialization || null,
+      studentId: studentId || null,
+      isBlocked: false,
+      lastLogin: null
     });
 
     // Жауапта құпия сөзді жою

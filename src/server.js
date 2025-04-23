@@ -28,6 +28,8 @@ const borrowRoutes = require('./routes/borrowRoutes');
 const bookmarkRoutes = require('./routes/bookmarkRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 // Express қосымшасын инициализациялау
 const app = express();
@@ -74,6 +76,8 @@ app.use('/api/borrows', borrowRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/books/categories', categoryRoutes);
 
 // Басты маршрут
 app.get('/', (req, res) => {
@@ -101,7 +105,8 @@ const server = app.listen(PORT, () => {
 });
 
 // Деректер қорын инициализациялау
-require('./database-init');
+const { initDatabase } = require('./database-init');
+initDatabase();
 
 // Өңделмеген промис қателерін өңдеу
 process.on('unhandledRejection', (err) => {

@@ -146,6 +146,13 @@ router
   .delete(protect, authorize('admin', 'librarian'), deleteBook);
 
 /**
+ * Кітаптың пікірлерін алу
+ * 
+ * @description Кітап үшін барлық пікірлерді алу
+ */
+router.get('/:id/reviews', require('../controllers/reviewController').getBookReviews);
+
+/**
  * Кітап мұқабасын жүктеу
  * 
  * @description Кітап мұқабасын жүктеу үшін маршрут

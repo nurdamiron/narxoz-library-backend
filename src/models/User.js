@@ -1,20 +1,34 @@
+const jwt = require('jsonwebtoken');
+
+/**
+ * Пайдаланушы моделі
+ * 
+ * @description Бұл модель жүйедегі барлық пайдаланушылар туралы ақпаратты сақтайды.
+ * Әкімшілер мен студенттер туралы мәліметтерді қамтиды.
+ */
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define('User', {
-    // All your existing fields here...
-    name: {
+    /**
+     * Пайдаланушы аты
+     */
+    username: {
       type: DataTypes.STRING,
       allowNull: false,
+      unique: true,
       validate: {
         notEmpty: {
-          msg: 'Атыңызды енгізіңіз'
+          msg: 'Пайдаланушы атын енгізіңіз'
         },
         len: {
-          args: [2, 50],
-          msg: 'Аты 2-50 таңба аралығында болуы керек'
+          args: [3, 50],
+          msg: 'Пайдаланушы аты 3-50 таңба аралығында болуы керек'
         }
       }
     },
-    // ... other fields ...
+    
+    /**
+     * Құпия сөз (хэширлеусіз сақталады)
+     */
     password: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -28,35 +42,175 @@ module.exports = (sequelize, DataTypes) => {
         }
       }
     },
-    role: {
+    
+    /**
+     * Аты
+     */
+    firstName: {
       type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: 'user',
       validate: {
-        isIn: {
-          args: [['admin', 'librarian', 'user']],
-          msg: 'Рөл admin немесе librarian болуы керек'
+        notEmpty: {
+          msg: 'Атыңызды енгізіңіз'
+        },
+        len: {
+          args: [2, 50],
+          msg: 'Аты 2-50 таңба аралығында болуы керек'
         }
       }
     },
-
+    
+    /**
+     * Тегі
+     */
+    lastName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        notEmpty: {
+          msg: 'Тегіңізді енгізіңіз'
+        },
+        len: {
+          args: [2, 50],
+          msg: 'Тегі 2-50 таңба аралығында болуы керек'
+        }
+      }
+    },
+    
+    /**
+     * Электрондық пошта
+     */
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: {
+        notEmpty: {
+          msg: 'Email мекенжайын енгізіңіз'
+        },
+        isEmail: {
+          msg: 'Жарамды email мекенжайын енгізіңіз'
+        }
+      }
+    },
+    
+    /**
+     * Телефон нөмірі
+     */
+    phoneNumber: {
+      type: DataTypes.STRING,
+      validate: {
+        is: {
+          args: /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/im,
+          msg: 'Жарамды телефон нөмірін енгізіңіз'
+        }
+      }
+    },
+    
+    /**
+     * Пайдаланушы рөлі
+     */
+    role: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'student',
+      validate: {
+        isIn: {
+          args: [['admin', 'student']],
+          msg: 'Рөл admin немесе student болуы керек'
+        }
+      }
+    },
+    
+    /**
+     * Факультет
+     */
+    faculty: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    
+    /**
+     * Мамандық
+     */
+    specialization: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    
+    /**
+     * Студенттік билет нөмірі
+     */
+    studentId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true
+    },
+    
+    /**
+     * Бұғатталған ба
+     */
+    isBlocked: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    
+    /**
+     * Соңғы кіру уақыты
+     */
+    lastLogin: {
+      type: DataTypes.DATE,
+      allowNull: true
+    }
   }, {
     hooks: {
+      // Хэширлеу қажет емес, құпия сөздер тікелей сақталады
     }
   });
 
+  /**
+   * Басқа модельдермен байланыстар
+   */
   User.associate = (models) => {
-    // Your existing associations...
+    // Қарызға алулармен байланыс
+    User.hasMany(models.Borrow, {
+      foreignKey: 'userId',
+      as: 'borrows',
+      onDelete: 'CASCADE'
+    });
+    
+    // Бетбелгілермен байланыс
+    User.hasMany(models.Bookmark, {
+      foreignKey: 'userId',
+      as: 'bookmarks',
+      onDelete: 'CASCADE'
+    });
+    
+    // Хабарландырулармен байланыс
+    User.hasMany(models.Notification, {
+      foreignKey: 'userId',
+      as: 'notifications',
+      onDelete: 'CASCADE'
+    });
   };
 
-  // Update the matchPassword method to do direct comparison
+  /**
+   * JWT токенін жасау
+   * 
+   * @returns {String} - JWT токені
+   */
   User.prototype.getSignedJwtToken = function() {
     return jwt.sign({ id: this.id }, process.env.JWT_SECRET, {
       expiresIn: '30d'
     });
   };
 
-  // Change this method to directly compare passwords
+  /**
+   * Құпия сөзді тікелей салыстыру
+   * 
+   * @param {String} enteredPassword - Пайдаланушы енгізген құпия сөз
+   * @returns {Boolean} - Құпия сөз сәйкес келетінін көрсетеді
+   */
   User.prototype.matchPassword = async function(enteredPassword) {
     return enteredPassword === this.password;
   };

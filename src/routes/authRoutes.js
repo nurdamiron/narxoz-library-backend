@@ -14,7 +14,7 @@ const {
   getMe,
   updateDetails,
   updatePassword,
-  registerAdmin,
+  registerUser,
   checkEmail
 } = require('../controllers/authController');
 const { protect, authorize } = require('../middleware/auth');
@@ -26,15 +26,14 @@ const router = express.Router();
  * Кіру валидациясы
  * 
  * @description Жүйеге кіру кезінде деректерді тексеру ережелері.
- * Email дұрыс форматта болуы және бос болмауы керек.
+ * Email бос болмауы керек.
  * Құпия сөз бос болмауы керек. Бұл ережелер пайдаланушыларға
  * кіру барысында дұрыс қате хабарламаларын көрсетуге мүмкіндік береді.
  */
 const loginValidation = [
   body('email')
-    .isEmail()
-    .withMessage('Дұрыс email енгізіңіз')
-    .normalizeEmail(),
+    .notEmpty()
+    .withMessage('Email міндетті'),
   body('password')
     .notEmpty()
     .withMessage('Құпия сөз міндетті')
@@ -58,32 +57,46 @@ const updatePasswordValidation = [
 ];
 
 /**
- * Әкімші тіркеу валидациясы
+ * Пайдаланушы тіркеу валидациясы
  * 
- * @description Жаңа әкімші немесе кітапханашы тіркеу кезіндегі деректерді тексеру ережелері.
- * Аты, email, құпия сөз және рөл өрістері міндетті.
- * Email дұрыс форматта және бірегей болуы керек.
+ * @description Жаңа пайдаланушы тіркеу кезіндегі деректерді тексеру ережелері.
+ * Логин, құпия сөз, аты, тегі, email және рөл өрістері міндетті.
+ * Email дұрыс форматта болуы керек.
  * Құпия сөз кемінде 6 таңбадан тұруы керек.
- * Рөл тек админ немесе кітапханашы болуы керек.
+ * Рөл тек admin немесе student болуы керек.
  */
-const registerAdminValidation = [
-  body('name')
+const registerUserValidation = [
+  body('username')
     .notEmpty()
-    .withMessage('Аты-жөні міндетті')
+    .withMessage('Логин міндетті')
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Логин 3-50 таңба аралығында болуы керек'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Құпия сөз кем дегенде 6 таңбадан тұруы керек'),
+  body('firstName')
+    .notEmpty()
+    .withMessage('Аты міндетті')
     .isLength({ min: 2, max: 50 })
     .withMessage('Аты 2-50 таңба аралығында болуы керек'),
+  body('lastName')
+    .notEmpty()
+    .withMessage('Тегі міндетті')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Тегі 2-50 таңба аралығында болуы керек'),
   body('email')
     .isEmail()
     .withMessage('Дұрыс email енгізіңіз')
     .normalizeEmail(),
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Құпия сөз кем дегенде 6 таңбадан тұруы керек'),
   body('role')
     .notEmpty()
     .withMessage('Рөл міндетті')
-    .isIn(['admin', 'librarian'])
-    .withMessage('Рөл тек "admin" немесе "librarian" болуы керек')
+    .isIn(['admin', 'student'])
+    .withMessage('Рөл тек "admin" немесе "student" болуы керек'),
+  body('phoneNumber')
+    .optional()
+    .matches(/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/im)
+    .withMessage('Жарамды телефон нөмірін енгізіңіз')
 ];
 
 // Пайдаланушы кіру
@@ -98,13 +111,13 @@ router.put('/updatedetails', protect, updateDetails);
 // Құпия сөзді жаңарту
 router.put('/updatepassword', protect, updatePasswordValidation, updatePassword);
 
-// Әкімші маршруттары
+// Пайдаланушы тіркеу (тек әкімшілер үшін)
 router.post(
-  '/register-admin',
+  '/register',
   protect,
   authorize('admin'),
-  registerAdminValidation,
-  registerAdmin
+  registerUserValidation,
+  registerUser
 );
 
 // Email бар-жоғын тексеру

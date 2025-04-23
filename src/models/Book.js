@@ -68,7 +68,7 @@ module.exports = (sequelize, DataTypes) => {
      * 
      * @description Кітап мұқабасының сурет файлының жолы
      */
-    coverUrl: {
+    cover: {
       type: DataTypes.STRING,
       defaultValue: '/uploads/covers/default-book-cover.jpg'
     },

@@ -1,10 +1,20 @@
-// middleware/auth.js
+/**
+ * Аутентификация және авторизация миддлвэрлері
+ * 
+ * @description Бұл файл API маршруттарын қорғау үшін қолданылатын
+ * миддлвэрлерді қамтиды. Ол пайдаланушыларды аутентификациялау және
+ * олардың рөлдеріне сәйкес авторизациялау үшін пайдаланылады.
+ */
 const asyncHandler = require('./async');
 const ErrorResponse = require('../utils/errorResponse');
 const { User } = require('../models');
 
 /**
- * Жеңілдетілген аутентификация - логин және құпия сөз арқылы тексеру
+ * Аутентификация миддлвэрі
+ * 
+ * @description API маршруттарын қорғау үшін пайдаланылады.
+ * Пайдаланушының логинін және құпия сөзін тексереді.
+ * Құпия сөздер хэшсіз тікелей сақталады және салыстырылады.
  */
 exports.protect = asyncHandler(async (req, res, next) => {
   // API үшін: аутторизация тақырыбынан алу
@@ -15,17 +25,19 @@ exports.protect = asyncHandler(async (req, res, next) => {
     const base64Credentials = req.headers.authorization.split(' ')[1];
     const decoded = Buffer.from(base64Credentials, 'base64').toString('utf-8');
     
-    // Формат: "username:password"
-    const [username, password] = decoded.split(':');
+    // Формат: "email:password"
+    const [email, password] = decoded.split(':');
     
-    if (username && password) {
-      credentials = { username, password };
+    console.log('Decoded credentials:', { email, passwordLength: password ? password.length : 0 });
+    
+    if (email && password) {
+      credentials = { email, password };
     }
   } 
   // Веб-қолданба үшін: сұраныс денесінен немесе сессиядан алу
-  else if (req.body.username && req.body.password) {
+  else if (req.body.email && req.body.password) {
     credentials = {
-      username: req.body.username,
+      email: req.body.email,
       password: req.body.password
     };
   }
@@ -35,10 +47,10 @@ exports.protect = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    // Пайдаланушыны іздеу
+    // Пайдаланушыны іздеу (email өрісі бойынша)
     const user = await User.findOne({
-      where: { email: credentials.username },
-      attributes: ['id', 'name', 'password', 'role', 'createdAt', 'updatedAt'] // role өрісін қосу
+      where: { email: credentials.email },
+      attributes: ['id', 'username', 'firstName', 'lastName', 'email', 'password', 'role', 'isBlocked', 'createdAt', 'updatedAt']
     });
     
     // Пайдаланушының бар-жоғын тексеру
@@ -46,40 +58,59 @@ exports.protect = asyncHandler(async (req, res, next) => {
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
     
-    // Құпия сөзді тікелей салыстыру
-    const isMatch = credentials.password === user.password;
+    // Пайдаланушы бұғатталған ба тексеру
+    if (user.isBlocked) {
+      return next(new ErrorResponse('Сіздің тіркелгіңіз бұғатталған. Әкімшіге хабарласыңыз', 403));
+    }
     
-    if (!isMatch) {
+    // Құпия сөзді тікелей салыстыру
+    if (credentials.password !== user.password) {
+      console.log('Password mismatch in middleware:', credentials.password, user.password);
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
     
+    // Соңғы кіру уақытын жаңарту
+    await user.update({
+      lastLogin: new Date()
+    });
+    
     // Пайдаланушы аутентификацияланған - сұранысқа қосу
-    req.user = user;
+    req.user = user.toJSON();
+    delete req.user.password; // Құпия сөзді алып тастау
+    
     next();
   } catch (err) {
+    console.error('Аутентификация қатесі:', err);
     return next(new ErrorResponse('Авторизация қатесі', 401));
   }
 });
 
 /**
- * Пайдаланушы рөлін тексеру
+ * Авторизация миддлвэрі
+ * 
+ * @description Пайдаланушы рөлін тексеру арқылы маршрутқа қол жеткізуді шектейді.
+ * Тек берілген рөлдері бар пайдаланушылар ғана қол жеткізе алады.
+ * 
+ * @param  {...String} roles - Рұқсат етілген рөлдер тізімі
+ * @returns {Function} - Express миддлвэрі
  */
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    // Әкімші email-і арқылы рөлді тексеру
-    if (req.user.email === 'admin@narxoz.kz') {
-      req.user.role = 'admin';
+    // Пайдаланушы объектісінің бар-жоғын тексеру
+    if (!req.user) {
+      return next(new ErrorResponse('Авторизация қажет', 401));
     }
     
     // Пайдаланушы рөлінің рұқсат етілген рөлдерде бар-жоғын тексеру
     if (!roles.includes(req.user.role)) {
       return next(
         new ErrorResponse(
-          `${req.user.role || 'undefined'} рөлі бар пайдаланушыға бұл мазмұнға қол жеткізуге рұқсат жоқ`,
+          `${req.user.role} рөлі бар пайдаланушыға бұл мазмұнға қол жеткізуге рұқсат жоқ`,
           403
         )
       );
     }
+    
     next();
   };
 };

@@ -381,7 +381,7 @@ exports.getAllBorrows = async (req, res, next) => {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'studentId'],
+          attributes: ['id', 'firstName', 'lastName', 'email', 'studentId'],
         },
       ],
       order: [['borrowDate', 'DESC']],
@@ -447,7 +447,7 @@ exports.getBorrow = async (req, res, next) => {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'studentId'],
+          attributes: ['id', 'firstName', 'lastName', 'email', 'studentId'],
         },
       ],
     });
@@ -571,7 +571,7 @@ exports.updateBorrow = async (req, res, next) => {
           {
             model: User,
             as: 'user',
-            attributes: ['id', 'name', 'email', 'studentId'],
+            attributes: ['id', 'firstName', 'lastName', 'email', 'studentId'],
           },
         ],
       });
@@ -615,7 +615,7 @@ exports.checkOverdueBorrows = async (req, res, next) => {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email'],
+          attributes: ['id', 'firstName', 'lastName', 'email'],
         },
       ],
     });
@@ -709,7 +709,7 @@ exports.sendDueReminders = async (req, res, next) => {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email'],
+          attributes: ['id', 'firstName', 'lastName', 'email'],
         },
       ],
     });
@@ -809,7 +809,7 @@ exports.getBorrowStats = async (req, res, next) => {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'studentId'],
+          attributes: ['id', 'firstName', 'lastName', 'email', 'studentId'],
         },
       ],
     });
