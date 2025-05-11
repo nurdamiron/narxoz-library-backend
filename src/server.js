@@ -43,7 +43,7 @@ const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:3001'];
+    const allowedOrigins = [process.env.FRONTEND_URL, 'http://localhost:3003', 'http://localhost:3002'];
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {

@@ -407,8 +407,8 @@ exports.deleteBook = async (req, res, next) => {
  */
 exports.uploadBookCover = async (req, res, next) => {
   try {
-    // ID бойынша кітапты іздеу
-    let book = await Book.findByPk(req.params.id);
+    // ID бойынша кітапты алу
+    const book = await Book.findByPk(req.params.id);
 
     // Кітап табылмаса қате қайтару
     if (!book) {
@@ -417,41 +417,103 @@ exports.uploadBookCover = async (req, res, next) => {
       );
     }
 
-    // Загрузка файла с использованием multer
-    upload(req, res, async (err) => {
+    // Multer арқылы файлды жүктеу
+    upload(req, res, async function(err) {
       if (err) {
-        return next(new ErrorResponse(`Файл жүктеу қатесі: ${err.message}`, 400));
+        console.error('Ошибка загрузки файла:', err);
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return next(
+            new ErrorResponse('Файл өлшемі 5MB-дан аспауы керек', 400)
+          );
+        }
+        return next(err);
       }
 
       if (!req.file) {
-        return next(new ErrorResponse('Файл таңдаңыз', 400));
+        console.error('Файл не был загружен');
+        return next(
+          new ErrorResponse('Жүктеу үшін файл таңдаңыз', 400)
+        );
       }
 
-      // Формирование относительного пути для сохранения в БД
-      const relativePath = `/uploads/covers/${req.file.filename}`;
+      console.log('Файл успешно загружен:', req.file);
 
-      // Если у книги уже была обложка, удаляем старый файл
-      if (book.cover && !book.cover.startsWith('http')) {
-        const oldCoverPath = path.join(__dirname, '../../public', book.cover);
-        if (fs.existsSync(oldCoverPath)) {
-          fs.unlinkSync(oldCoverPath);
+      // Сақтау режимін анықтау (локальды немесе сыртқы)
+      const storeLocally = req.body.storeLocally === 'true';
+      
+      try {
+        const filePath = req.file.path;
+        const fileName = req.file.filename;
+        
+        // Убедимся, что путь доступен
+        if (!fs.existsSync(filePath)) {
+          console.error('Путь к загруженному файлу не существует:', filePath);
+          return next(
+            new ErrorResponse('Ошибка при сохранении файла', 500)
+          );
         }
+        
+        console.log('Путь к загруженному файлу:', filePath);
+        console.log('Имя файла:', fileName);
+        
+        // Сыртқы хостингке жүктеу немесе локальды сақтау
+        let coverUrl;
+        
+        if (storeLocally) {
+          // Локальды сақтау - жай ғана жүктелген файлдың жолын пайдалану
+          coverUrl = `/uploads/covers/${fileName}`;
+          console.log(`📸 Мұқаба локальды сақталды: ${coverUrl}`);
+        } else {
+          // Бұл жерде сыртқы хостингке жүктеу кодын іске асыруға болады
+          // Мысалы: Amazon S3, Cloudinary, т.б.
+          // Қазіргі уақытта, біз тек локальды сақтауды пайдаланамыз
+          coverUrl = `/uploads/covers/${fileName}`;
+          console.log(`📸 Мұқаба жүктелді: ${coverUrl}`);
+        }
+
+        // Ескі мұқаба файлын жою (әдепкіден басқа)
+        const oldCover = book.cover;
+        if (oldCover && !oldCover.includes('default-book-cover') && oldCover.startsWith('/uploads/')) {
+          const oldCoverPath = path.join(__dirname, '../../public', oldCover);
+          if (fs.existsSync(oldCoverPath)) {
+            fs.unlinkSync(oldCoverPath);
+            console.log(`🗑️ Ескі мұқаба жойылды: ${oldCoverPath}`);
+          }
+        }
+
+        // Кітапты жаңарту
+        await book.update({ 
+          cover: coverUrl,
+          coverStoredLocally: storeLocally  // Мұқаба сақтау режимін сақтау
+        });
+
+        // Проверим, успешно ли обновилась запись в базе данных
+        const updatedBook = await Book.findByPk(req.params.id);
+        console.log('Обновленная запись в БД:', updatedBook.cover);
+
+        // Толық URL мекенжайын құру
+        const serverUrl = `${req.protocol}://${req.get('host')}`;
+        const fullCoverUrl = `${serverUrl}${coverUrl}`;
+        console.log('Полный URL обложки:', fullCoverUrl);
+
+        res.status(200).json({
+          success: true,
+          data: {
+            id: book.id,
+            cover: coverUrl, // Возвращаем относительный путь
+            fullCoverUrl: fullCoverUrl, // Возвращаем полный URL
+            coverStoredLocally: storeLocally
+          },
+          message: 'Кітап мұқабасы сәтті жүктелді'
+        });
+      } catch (error) {
+        console.error('Ошибка при обработке загруженного файла:', error);
+        // Жүктелген файлды тазалау
+        if (req.file) {
+          fs.unlinkSync(req.file.path);
+        }
+        throw error;
       }
-
-      // Обновление пути к обложке в БД
-      book.cover = relativePath;
-      await book.save();
-
-      // Формирование полного URL для фронтенда
-      const serverUrl = `${req.protocol}://${req.get('host')}`;
-      const fullCoverUrl = `${serverUrl}${relativePath}`;
-
-      res.status(200).json({
-        success: true,
-        data: {
-          cover: fullCoverUrl
-        }
-      });
     });
   } catch (err) {
     next(err);

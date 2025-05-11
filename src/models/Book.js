@@ -74,6 +74,16 @@ module.exports = (sequelize, DataTypes) => {
     },
     
     /**
+     * Мұқаба жергілікті сақталған ба
+     * 
+     * @description Кітап мұқабасының локальды серверде сақталғанын көрсетеді
+     */
+    coverStoredLocally: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
+    },
+    
+    /**
      * Кітап сипаттамасы
      * 
      * @description Кітаптың толық сипаттамасы
@@ -151,41 +161,6 @@ module.exports = (sequelize, DataTypes) => {
         min: {
           args: [0],
           msg: 'Қолжетімді даналар саны теріс болмауы керек'
-        }
-      }
-    },
-    
-    /**
-     * ISBN нөмірі
-     * 
-     * @description Кітаптың халықаралық стандартты кітап нөмірі
-     */
-    isbn: {
-      type: DataTypes.STRING,
-      validate: {
-        isValidISBN(value) {
-          if (!value || value.trim() === '') {
-            return; // ISBN міндетті емес
-          }
-          
-          // Барлық сызықшалар мен бос орындарды жою
-          const cleanedISBN = value.replace(/[-\s]/g, '');
-          
-          // ISBN ұзындығын тексеру
-          if (cleanedISBN.length !== 10 && cleanedISBN.length !== 13) {
-            throw new Error('Жарамды ISBN нөмірін енгізіңіз');
-          }
-          
-          // ISBN форматын тексеру
-          if (cleanedISBN.length === 10) {
-            if (!/^[0-9]{9}[0-9X]$/.test(cleanedISBN)) {
-              throw new Error('Жарамды ISBN нөмірін енгізіңіз');
-            }
-          } else {
-            if (!/^[0-9]{13}$/.test(cleanedISBN)) {
-              throw new Error('Жарамды ISBN нөмірін енгізіңіз');
-            }
-          }
         }
       }
     },

@@ -56,36 +56,7 @@ const bookValidation = [
   body('totalCopies')
     .optional()
     .isInt({ min: 1 })
-    .withMessage('Жалпы даналар саны кем дегенде 1 болуы керек'),
-  body('isbn')
-    .optional()
-    .custom((value) => {
-      // ISBN болмаса немесе бос болса
-      if (!value || value.trim() === '') {
-        return true;
-      }
-      
-      // ISBN форматын тексеру
-      const cleanedISBN = value.replace(/[-\s]/g, '');
-      
-      if (cleanedISBN.length !== 10 && cleanedISBN.length !== 13) {
-        throw new Error('ISBN 10 немесе 13 санды болуы керек');
-      }
-      
-      // ISBN-10 тексеру
-      if (cleanedISBN.length === 10) {
-        if (!/^[0-9]{9}[0-9X]$/.test(cleanedISBN)) {
-          throw new Error('ISBN-10 форматы дұрыс емес');
-        }
-      } 
-      // ISBN-13 тексеру
-      else if (!/^[0-9]{13}$/.test(cleanedISBN)) {
-        throw new Error('ISBN-13 форматы дұрыс емес');
-      }
-      
-      return true;
-    })
-    .withMessage('Жарамды ISBN нөмірін енгізіңіз')
+    .withMessage('Жалпы даналар саны кем дегенде 1 болуы керек')
 ];
 
 /**
