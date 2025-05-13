@@ -84,12 +84,12 @@ const categoryValidation = [
 router
   .route('/categories')
   .get(getCategories)
-  .post(protect, authorize('admin', 'librarian'), categoryValidation, createCategory);
+  .post(protect, authorize('admin', 'librarian', 'moderator'), categoryValidation, createCategory);
 
 router
   .route('/categories/:id')
-  .put(protect, authorize('admin', 'librarian'), categoryValidation, updateCategory)
-  .delete(protect, authorize('admin', 'librarian'), deleteCategory);
+  .put(protect, authorize('admin', 'librarian', 'moderator'), categoryValidation, updateCategory)
+  .delete(protect, authorize('admin', 'librarian', 'moderator'), deleteCategory);
 
 
 /**
@@ -108,13 +108,13 @@ router.get('/new', getNewBooks);
 router
   .route('/')
   .get(getBooks)
-  .post(protect, authorize('admin', 'librarian'), bookValidation, createBook);
+  .post(protect, authorize('admin', 'librarian', 'moderator'), bookValidation, createBook);
 
 router
   .route('/:id')
   .get(getBook)
-  .put(protect, authorize('admin', 'librarian'), updateBook)
-  .delete(protect, authorize('admin', 'librarian'), deleteBook);
+  .put(protect, authorize('admin', 'librarian', 'moderator'), updateBook)
+  .delete(protect, authorize('admin', 'librarian', 'moderator'), deleteBook);
 
 /**
  * Кітаптың пікірлерін алу
@@ -131,7 +131,7 @@ router.get('/:id/reviews', require('../controllers/reviewController').getBookRev
 router.put(
   '/:id/cover',
   protect,
-  authorize('admin', 'librarian'),
+  authorize('admin', 'librarian', 'moderator'),
   uploadBookCover
 );
 
@@ -143,7 +143,7 @@ router.put(
 router.put(
   '/:id/inventory',
   protect,
-  authorize('admin', 'librarian'),
+  authorize('admin', 'librarian', 'moderator'),
   updateInventory
 );
 

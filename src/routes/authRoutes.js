@@ -91,12 +91,12 @@ const registerUserValidation = [
   body('role')
     .notEmpty()
     .withMessage('Рөл міндетті')
-    .isIn(['admin', 'student'])
-    .withMessage('Рөл тек "admin" немесе "student" болуы керек'),
+    .isIn(['admin', 'student', 'moderator'])
+    .withMessage('Рөл тек "admin", "moderator" немесе "student" болуы керек'),
   body('phoneNumber')
     .optional()
     .matches(/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/im)
-    .withMessage('Жарамды телефон нөмірін енгізіңіз')
+    .withMessage('Жарамды телефон нөірін енгізіңіз')
 ];
 
 // Пайдаланушы кіру
@@ -111,11 +111,11 @@ router.put('/updatedetails', protect, updateDetails);
 // Құпия сөзді жаңарту
 router.put('/updatepassword', protect, updatePasswordValidation, updatePassword);
 
-// Пайдаланушы тіркеу (тек әкімшілер үшін)
+// Пайдаланушы тіркеу (әкімшілер мен модераторлар үшін)
 router.post(
   '/register',
   protect,
-  authorize('admin'),
+  authorize('admin', 'moderator'),
   registerUserValidation,
   registerUser
 );

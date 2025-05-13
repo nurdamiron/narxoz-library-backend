@@ -28,7 +28,7 @@ async function initDatabase() {
     // Барлық модельдерді деректер қорымен синхрондау
     // force: true - бар кестелерді жояды (абайлап қолданыңыз!)
     // force: false - кестелер жоқ болса ғана жасайды
-    await db.sequelize.sync({ force: true });
+    await db.sequelize.sync({ force: false });
     
     console.log('Деректер қоры синхрондау сәтті аяқталды.');
     

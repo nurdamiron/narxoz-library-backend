@@ -41,8 +41,8 @@ router.route('/read-all').put(markAllAsRead);
  */
 router
   .route('/')
-  .get(getNotifications)
-  .post(authorize('admin'), createNotification);
+  .get(authorize('admin', 'moderator', 'librarian', 'student', 'teacher'), getNotifications)
+  .post(authorize('admin', 'moderator'), createNotification);
 
 /**
  * Жеке хабарландыруды басқару

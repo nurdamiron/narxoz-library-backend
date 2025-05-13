@@ -9,7 +9,7 @@ const router = express.Router();
 // Базовые маршруты для отзывов
 router
   .route('/')
-  .get(protect, authorize('admin'), reviewController.getReviews)
+  .get(protect, authorize('admin', 'moderator'), reviewController.getReviews)
   .post(
     protect,
     [
@@ -26,6 +26,7 @@ router
   .get(protect, reviewController.getReview)
   .put(
     protect,
+    authorize('admin', 'moderator'),
     [
       check('rating', 'Рейтинг 1 мен 5 аралығында болуы керек').optional().isInt({ min: 1, max: 5 }),
       check('text', 'Пікір мәтіні 10-500 таңба аралығында болуы керек').optional().isLength({ min: 10, max: 500 })
@@ -38,7 +39,7 @@ router
 router.put(
   '/:id/approve',
   protect,
-  authorize('admin'),
+  authorize('admin', 'moderator'),
   reviewController.approveReview
 );
 

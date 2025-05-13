@@ -173,7 +173,21 @@ exports.getBooks = async (req, res, next) => {
           // Проверяем, является ли путь абсолютным URL или относительным
           if (!bookObj.cover.startsWith('http')) {
             const serverUrl = `${req.protocol}://${req.get('host')}`;
+            // Сохраняем оригинальный относительный путь для клиентской диагностики
+            bookObj.relativeCoverPath = bookObj.cover;
             bookObj.cover = `${serverUrl}${bookObj.cover}`;
+            
+            // Проверяем существование файла обложки
+            const coverFilePath = path.join(__dirname, '../../public', bookObj.relativeCoverPath);
+            bookObj.coverFileExists = fs.existsSync(coverFilePath);
+            bookObj.coverFileSize = bookObj.coverFileExists ? fs.statSync(coverFilePath).size : 0;
+            
+            console.log(`📚 Данные об обложке для книги ${bookObj.id} (${bookObj.title}):
+              - Относительный путь: ${bookObj.relativeCoverPath}
+              - Полный URL: ${bookObj.cover}
+              - Файл существует: ${bookObj.coverFileExists ? 'Да' : 'Нет'}
+              - Размер файла: ${bookObj.coverFileSize} байт
+            `);
           }
         }
         
@@ -249,7 +263,21 @@ exports.getBook = async (req, res, next) => {
       // Проверяем, является ли путь абсолютным URL или относительным
       if (!bookObj.cover.startsWith('http')) {
         const serverUrl = `${req.protocol}://${req.get('host')}`;
+        // Сохраняем оригинальный относительный путь для клиентской диагностики
+        bookObj.relativeCoverPath = bookObj.cover;
         bookObj.cover = `${serverUrl}${bookObj.cover}`;
+        
+        // Проверяем существование файла обложки
+        const coverFilePath = path.join(__dirname, '../../public', bookObj.relativeCoverPath);
+        bookObj.coverFileExists = fs.existsSync(coverFilePath);
+        bookObj.coverFileSize = bookObj.coverFileExists ? fs.statSync(coverFilePath).size : 0;
+        
+        console.log(`📚 Данные об обложке для одиночной книги ${bookObj.id} (${bookObj.title}):
+          - Относительный путь: ${bookObj.relativeCoverPath}
+          - Полный URL: ${bookObj.cover}
+          - Файл существует: ${bookObj.coverFileExists ? 'Да' : 'Нет'}
+          - Размер файла: ${bookObj.coverFileSize} байт
+        `);
       }
     }
 
@@ -417,10 +445,16 @@ exports.uploadBookCover = async (req, res, next) => {
       );
     }
 
+    // Проверка и создание директории для загрузки
+    const uploadDir = path.join(__dirname, '../../public/uploads/covers');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+      console.log(`📂 Создана директория для загрузки обложек: ${uploadDir}`);
+    }
+
     // Multer арқылы файлды жүктеу
     upload(req, res, async function(err) {
       if (err) {
-        console.error('Ошибка загрузки файла:', err);
         if (err.code === 'LIMIT_FILE_SIZE') {
           return next(
             new ErrorResponse('Файл өлшемі 5MB-дан аспауы керек', 400)
@@ -430,46 +464,24 @@ exports.uploadBookCover = async (req, res, next) => {
       }
 
       if (!req.file) {
-        console.error('Файл не был загружен');
         return next(
           new ErrorResponse('Жүктеу үшін файл таңдаңыз', 400)
         );
       }
 
-      console.log('Файл успешно загружен:', req.file);
-
       // Сақтау режимін анықтау (локальды немесе сыртқы)
-      const storeLocally = req.body.storeLocally === 'true';
+      const storeLocally = true; // Всегда сохраняем локально для надежности
       
       try {
         const filePath = req.file.path;
         const fileName = req.file.filename;
         
-        // Убедимся, что путь доступен
-        if (!fs.existsSync(filePath)) {
-          console.error('Путь к загруженному файлу не существует:', filePath);
-          return next(
-            new ErrorResponse('Ошибка при сохранении файла', 500)
-          );
-        }
+        // Логирование информации о файле
+        console.log(`📂 Загружен файл: ${fileName}, путь: ${filePath}`);
         
-        console.log('Путь к загруженному файлу:', filePath);
-        console.log('Имя файла:', fileName);
-        
-        // Сыртқы хостингке жүктеу немесе локальды сақтау
-        let coverUrl;
-        
-        if (storeLocally) {
-          // Локальды сақтау - жай ғана жүктелген файлдың жолын пайдалану
-          coverUrl = `/uploads/covers/${fileName}`;
-          console.log(`📸 Мұқаба локальды сақталды: ${coverUrl}`);
-        } else {
-          // Бұл жерде сыртқы хостингке жүктеу кодын іске асыруға болады
-          // Мысалы: Amazon S3, Cloudinary, т.б.
-          // Қазіргі уақытта, біз тек локальды сақтауды пайдаланамыз
-          coverUrl = `/uploads/covers/${fileName}`;
-          console.log(`📸 Мұқаба жүктелді: ${coverUrl}`);
-        }
+        // Формируем относительный путь к файлу для сохранения в БД
+        let coverUrl = `/uploads/covers/${fileName}`;
+        console.log(`📸 Мұқаба локальды сақталды: ${coverUrl}`);
 
         // Ескі мұқаба файлын жою (әдепкіден басқа)
         const oldCover = book.cover;
@@ -481,41 +493,73 @@ exports.uploadBookCover = async (req, res, next) => {
           }
         }
 
-        // Кітапты жаңарту
+        // Проверяем существование загруженного файла
+        if (!fs.existsSync(filePath)) {
+          return next(
+            new ErrorResponse('Загруженный файл не найден на сервере', 500)
+          );
+        }
+
+        // Кітапты жаңарту (сохраняем относительный путь в БД)
         await book.update({ 
           cover: coverUrl,
-          coverStoredLocally: storeLocally  // Мұқаба сақтау режимін сақтау
+          coverStoredLocally: storeLocally
         });
 
-        // Проверим, успешно ли обновилась запись в базе данных
-        const updatedBook = await Book.findByPk(req.params.id);
-        console.log('Обновленная запись в БД:', updatedBook.cover);
+        // Проверка существования файла после сохранения
+        const newCoverPath = path.join(__dirname, '../../public', coverUrl);
+        const fileExistsAtNewPath = fs.existsSync(newCoverPath);
+        console.log(`📂 Проверка существования файла: ${newCoverPath} - ${fileExistsAtNewPath ? 'Существует' : 'Не существует'}`);
 
-        // Толық URL мекенжайын құру
+        // Толық URL мекенжайын құру - формируем абсолютный URL для клиента
         const serverUrl = `${req.protocol}://${req.get('host')}`;
         const fullCoverUrl = `${serverUrl}${coverUrl}`;
-        console.log('Полный URL обложки:', fullCoverUrl);
+        console.log(`🔗 Сформирован полный URL обложки: ${fullCoverUrl}`);
 
+        // Дополнительная проверка доступности файла
+        const fileFullPath = path.join(__dirname, '../../public', coverUrl);
+        const fileExists = fs.existsSync(fileFullPath);
+        const fileSize = fileExists ? fs.statSync(fileFullPath).size : 0;
+        
+        console.log(`📂 Проверка файла обложки на диске: 
+          - Полный путь: ${fileFullPath}
+          - Существует: ${fileExists ? 'Да' : 'Нет'}
+          - Размер: ${fileSize} байт
+        `);
+        
+        // Сообщаем клиенту, где найти загруженную обложку
         res.status(200).json({
           success: true,
           data: {
             id: book.id,
-            cover: coverUrl, // Возвращаем относительный путь
-            fullCoverUrl: fullCoverUrl, // Возвращаем полный URL
-            coverStoredLocally: storeLocally
+            cover: fullCoverUrl, // Отправляем абсолютный URL
+            coverStoredLocally: storeLocally,
+            relativePath: coverUrl, // Также отправляем и относительный путь для возможности использования
+            fileInfo: {
+              exists: fileExists,
+              size: fileSize,
+              path: fileFullPath,
+              url: coverUrl,
+              fullUrl: fullCoverUrl
+            }
           },
           message: 'Кітап мұқабасы сәтті жүктелді'
         });
       } catch (error) {
-        console.error('Ошибка при обработке загруженного файла:', error);
         // Жүктелген файлды тазалау
         if (req.file) {
-          fs.unlinkSync(req.file.path);
+          try {
+            fs.unlinkSync(req.file.path);
+            console.log(`🗑️ Файл удален при ошибке: ${req.file.path}`);
+          } catch (unlinkError) {
+            console.error(`❌ Ошибка при удалении файла: ${unlinkError.message}`);
+          }
         }
         throw error;
       }
     });
   } catch (err) {
+    console.error(`❌ Общая ошибка при загрузке обложки: ${err.message}`);
     next(err);
   }
 };
@@ -742,7 +786,22 @@ exports.getPopularBooks = async (req, res, next) => {
       
       if (bookObj.cover && !bookObj.cover.startsWith('http')) {
         const serverUrl = `${req.protocol}://${req.get('host')}`;
+        
+        // Сохраняем оригинальный относительный путь для клиентской диагностики
+        bookObj.relativeCoverPath = bookObj.cover;
         bookObj.cover = `${serverUrl}${bookObj.cover}`;
+        
+        // Проверяем существование файла обложки
+        const coverFilePath = path.join(__dirname, '../../public', bookObj.relativeCoverPath);
+        bookObj.coverFileExists = fs.existsSync(coverFilePath);
+        bookObj.coverFileSize = bookObj.coverFileExists ? fs.statSync(coverFilePath).size : 0;
+        
+        console.log(`📚 Данные об обложке для популярной/новой книги ${bookObj.id} (${bookObj.title}):
+          - Относительный путь: ${bookObj.relativeCoverPath}
+          - Полный URL: ${bookObj.cover}
+          - Файл существует: ${bookObj.coverFileExists ? 'Да' : 'Нет'}
+          - Размер файла: ${bookObj.coverFileSize} байт
+        `);
       }
       
       return bookObj;
@@ -788,7 +847,22 @@ exports.getNewBooks = async (req, res, next) => {
       
       if (bookObj.cover && !bookObj.cover.startsWith('http')) {
         const serverUrl = `${req.protocol}://${req.get('host')}`;
+        
+        // Сохраняем оригинальный относительный путь для клиентской диагностики
+        bookObj.relativeCoverPath = bookObj.cover;
         bookObj.cover = `${serverUrl}${bookObj.cover}`;
+        
+        // Проверяем существование файла обложки
+        const coverFilePath = path.join(__dirname, '../../public', bookObj.relativeCoverPath);
+        bookObj.coverFileExists = fs.existsSync(coverFilePath);
+        bookObj.coverFileSize = bookObj.coverFileExists ? fs.statSync(coverFilePath).size : 0;
+        
+        console.log(`📚 Данные об обложке для популярной/новой книги ${bookObj.id} (${bookObj.title}):
+          - Относительный путь: ${bookObj.relativeCoverPath}
+          - Полный URL: ${bookObj.cover}
+          - Файл существует: ${bookObj.coverFileExists ? 'Да' : 'Нет'}
+          - Размер файла: ${bookObj.coverFileSize} байт
+        `);
       }
       
       return bookObj;

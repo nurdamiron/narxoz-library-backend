@@ -71,23 +71,7 @@ exports.getDashboardStats = async (req, res, next) => {
       return itemObj;
     });
 
-    // Ең белсенді пайдаланушылар
-    const mostActiveBorrowers = await Borrow.findAll({
-      attributes: [
-        'userId',
-        [db.sequelize.fn('COUNT', db.sequelize.col('userId')), 'borrowCount'],
-      ],
-      group: ['userId'],
-      order: [[db.sequelize.literal('borrowCount'), 'DESC']],
-      limit: 5,
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'firstName', 'lastName', 'email', 'studentId', 'faculty'],
-        },
-      ],
-    });
+    // Белсенді пайдаланушылар секциясы алынып тасталды
 
     // Соңғы қосылған кітаптар
     const newBooks = await Book.findAll({
@@ -129,7 +113,6 @@ exports.getDashboardStats = async (req, res, next) => {
           totalBorrows: activeBorrowsCount + overdueBorrowsCount
         },
         mostBorrowedBooks: booksWithFullUrls,
-        mostActiveBorrowers,
         newBooks: newBooksWithFullUrls
       }
     });

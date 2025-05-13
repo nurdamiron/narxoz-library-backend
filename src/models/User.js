@@ -116,8 +116,8 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'student',
       validate: {
         isIn: {
-          args: [['admin', 'student']],
-          msg: 'Рөл admin немесе student болуы керек'
+          args: [['admin', 'student', 'moderator', 'librarian']],
+          msg: 'Рөл admin, moderator, librarian немесе student болуы керек'
         }
       }
     },
@@ -190,6 +190,20 @@ module.exports = (sequelize, DataTypes) => {
     User.hasMany(models.Notification, {
       foreignKey: 'userId',
       as: 'notifications',
+      onDelete: 'CASCADE'
+    });
+    
+    // Event байланысы - пайдаланушы жасаған оқиғалар
+    User.hasMany(models.Event, {
+      foreignKey: 'createdBy',
+      as: 'createdEvents',
+      onDelete: 'CASCADE'
+    });
+    
+    // Event тіркелулермен байланыс
+    User.hasMany(models.EventRegistration, {
+      foreignKey: 'userId',
+      as: 'eventRegistrations',
       onDelete: 'CASCADE'
     });
   };

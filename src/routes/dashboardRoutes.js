@@ -19,7 +19,7 @@ const router = express.Router();
  * 
  * @description Төмендегі барлық маршруттар аутентификацияны және әкімші рөлін талап етеді
  */
-router.use(protect, authorize('admin', 'librarian'));
+router.use(protect, authorize('admin', 'librarian', 'moderator'));
 
 /**
  * Статистика маршруттары

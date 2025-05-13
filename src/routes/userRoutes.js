@@ -44,24 +44,29 @@ router.get('/me/stats', getMyStats);
 router.put('/me/password', changePassword);
 
 /**
- * Тек әкімшіге арналған маршруттар
+ * Әкімшілер және модераторларға арналған маршруттар
  * 
  * @description Жүйе пайдаланушыларын басқаруға арналған маршруттар
  */
-router.use(authorize('admin'));
 
 /**
  * Пайдаланушыларды басқару
  * 
  * @description Барлық пайдаланушыларды алу және жаңа пайдаланушы жасау
  */
-router.route('/').get(getUsers).post(createUser);
+router.route('/')
+  .get(authorize('admin', 'moderator'), getUsers)
+  .post(authorize('admin', 'moderator'), createUser);
 
 /**
  * Жеке пайдаланушыны басқару
  * 
  * @description Жеке пайдаланушыны ID бойынша алу, жаңарту және жою
+ * Жою операциясы тек әкімшілер үшін қолжетімді
  */
-router.route('/:id').get(getUser).put(updateUser).delete(deleteUser);
+router.route('/:id')
+  .get(authorize('admin', 'moderator'), getUser)
+  .put(authorize('admin', 'moderator'), updateUser)
+  .delete(authorize('admin'), deleteUser);
 
 module.exports = router;

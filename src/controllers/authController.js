@@ -175,8 +175,8 @@ exports.registerUser = async (req, res, next) => {
       });
     }
 
-    // Тек әкімші ғана жаңа пайдаланушыларды тіркей алады
-    if (req.user.role !== 'admin') {
+    // Тек әкімші мен модератор ғана жаңа пайдаланушыларды тіркей алады
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator') {
       return next(new ErrorResponse('Пайдаланушыларды тіркеуге рұқсатыңыз жоқ', 403));
     }
 
@@ -216,7 +216,7 @@ exports.registerUser = async (req, res, next) => {
       return next(new ErrorResponse('Бұл email бұрыннан тіркелген', 400));
     }
 
-    // Студенттік билет нөмірінің бірегейлігін тексеру (егер көрсетілген болса)
+    // Студенттік билет нөірінің бірегейлігін тексеру (егер көрсетілген болса)
     if (studentId) {
       const existingStudentId = await User.findOne({ where: { studentId } });
       if (existingStudentId) {
@@ -225,8 +225,13 @@ exports.registerUser = async (req, res, next) => {
     }
 
     // Рөлдің жарамды екенін тексеру
-    if (role !== 'admin' && role !== 'student') {
-      return next(new ErrorResponse('Жарамсыз рөл. Тек "admin" немесе "student" рөлі болуы керек', 400));
+    if (role !== 'admin' && role !== 'student' && role !== 'moderator') {
+      return next(new ErrorResponse('Рөл тек "admin", "moderator" немесе "student" болуы керек', 400));
+    }
+    
+    // Модераторлар админ рөлін бере алмайды
+    if (req.user.role === 'moderator' && role === 'admin') {
+      return next(new ErrorResponse('Модераторлар админ рөлін бере алмайды', 403));
     }
 
     // Құпия сөз ұзындығын тексеру

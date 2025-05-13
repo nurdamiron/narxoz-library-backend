@@ -12,7 +12,7 @@ router
   .get(categoryController.getCategories)
   .post(
     protect,
-    authorize('admin'),
+    authorize('admin', 'moderator'),
     [
       check('name', 'Санат атауы 2-50 таңба аралығында болуы керек').isLength({ min: 2, max: 50 }),
       check('description', 'Сипаттама 500 таңбадан аспауы керек').optional().isLength({ max: 500 })
@@ -21,7 +21,7 @@ router
   );
 
 // Маршруты для статистики категорий
-router.get('/stats', protect, authorize('admin'), categoryController.getCategoryStats);
+router.get('/stats', protect, authorize('admin', 'moderator'), categoryController.getCategoryStats);
 
 // Маршруты для конкретной категории
 router
@@ -29,13 +29,13 @@ router
   .get(categoryController.getCategory)
   .put(
     protect,
-    authorize('admin'),
+    authorize('admin', 'moderator'),
     [
       check('name', 'Санат атауы 2-50 таңба аралығында болуы керек').optional().isLength({ min: 2, max: 50 }),
       check('description', 'Сипаттама 500 таңбадан аспауы керек').optional().isLength({ max: 500 })
     ],
     categoryController.updateCategory
   )
-  .delete(protect, authorize('admin'), categoryController.deleteCategory);
+  .delete(protect, authorize('admin', 'moderator'), categoryController.deleteCategory);
 
 module.exports = router;

@@ -36,10 +36,10 @@ router.use(protect);
  * @description Жүйенің барлық қарызға алуларын басқаруға арналған маршруттар
  * ВАЖНО: Сначала определите специфические маршруты, потом общие с параметрами
  */
-router.get('/all', authorize('admin', 'librarian'), getAllBorrows);
-router.get('/check-overdue', authorize('admin', 'librarian'), checkOverdueBorrows);
-router.get('/send-reminders', authorize('admin', 'librarian'), sendDueReminders);
-router.get('/stats', authorize('admin', 'librarian'), getBorrowStats);
+router.get('/all', authorize('admin', 'librarian', 'moderator'), getAllBorrows);
+router.get('/check-overdue', authorize('admin', 'librarian', 'moderator'), checkOverdueBorrows);
+router.get('/send-reminders', authorize('admin', 'librarian', 'moderator'), sendDueReminders);
+router.get('/stats', authorize('admin', 'librarian', 'moderator'), getBorrowStats);
 
 /**
  * Пайдаланушы қарызға алу маршруттары
@@ -66,6 +66,6 @@ router.put('/:id/extend', extendBorrow);
 /**
  * Жеке қарыз алуды жаңарту (админ)
  */
-router.put('/:id', authorize('admin', 'librarian'), updateBorrow);
+router.put('/:id', authorize('admin', 'librarian', 'moderator'), updateBorrow);
 
 module.exports = router;
