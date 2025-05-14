@@ -387,12 +387,12 @@ exports.getMyStats = asyncHandler(async (req, res, next) => {
     order: [['borrowDate', 'DESC']],
     include: [
       {
-        model: db.Book,
+        model: require('../models').Book,
         as: 'book',
         attributes: ['id', 'title', 'author', 'cover'],
         include: [
           {
-            model: db.Category,
+            model: require('../models').Category,
             as: 'category',
             attributes: ['id', 'name'],
           },

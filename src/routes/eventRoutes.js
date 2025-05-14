@@ -23,7 +23,8 @@ const {
   deleteEventCategory,
   getEventRegistrations,
   getMyEvents,
-  getMyCreatedEvents
+  getMyCreatedEvents,
+  uploadEventMedia
 } = require('../controllers/eventController');
 
 // Import middleware
@@ -114,12 +115,16 @@ router.route('/:id')
       check('endDate').optional().isISO8601(),
       check('capacity').optional().isInt({ min: 1 }),
       check('registrationDeadline').optional().isISO8601(),
-      check('image').optional().isURL(),
+      check('image').optional(),
       check('isActive').optional().isBoolean(),
       check('categories').optional().isArray()
     ],
     updateEvent
   )
   .delete(protect, authorize('admin', 'moderator'), deleteEvent);
+
+// Event image upload route
+router.route('/:id/media')
+  .put(protect, authorize('admin', 'moderator'), uploadEventMedia);
 
 module.exports = router;

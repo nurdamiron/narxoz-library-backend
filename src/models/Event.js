@@ -113,6 +113,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    imageStoredLocally: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: true,
+    },
     isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -158,9 +163,13 @@ module.exports = (sequelize, DataTypes) => {
       as: 'categories'
     });
 
-    // Event can have many notifications
+    // Event can have many notifications - using polymorphic relationship
     Event.hasMany(models.Notification, {
-      foreignKey: 'eventId',
+      foreignKey: 'relatedId',
+      constraints: false,
+      scope: {
+        relatedModel: 'Event'
+      },
       as: 'notifications'
     });
   };

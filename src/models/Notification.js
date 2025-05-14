@@ -74,8 +74,8 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       validate: {
         isIn: {
-          args: [['Book', 'Borrow', '']],
-          msg: 'Байланысты модель Book, Borrow немесе бос болуы керек'
+          args: [['Book', 'Borrow', 'Event', '']],
+          msg: 'Байланысты модель Book, Borrow, Event немесе бос болуы керек'
         }
       },
       defaultValue: ''

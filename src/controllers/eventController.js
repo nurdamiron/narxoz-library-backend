@@ -6,11 +6,49 @@
  * - Fetching events with filtering and pagination
  * - Managing event categories
  * - Handling event registrations
+ * - Uploading event images
  */
 const { Event, EventRegistration, EventCategory, User, Notification } = require('../models');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 const { Op } = require('sequelize');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+
+// Setup storage for event media uploads
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const uploadDir = path.join(__dirname, '../../public/uploads/events');
+    // Make sure the directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function(req, file, cb) {
+    // Create unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `event-${req.params.id}-${uniqueSuffix}${ext}`);
+  }
+});
+
+// File filter - only images
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new ErrorResponse('Only image files are allowed', 400), false);
+  }
+};
+
+// Initialize multer for event images
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: fileFilter
+}).single('file');
 
 /**
  * @desc    Get all events with optional filtering
@@ -88,6 +126,19 @@ exports.getEvents = asyncHandler(async (req, res, next) => {
     order: [['startDate', 'ASC']]
   });
 
+  // Process image URLs
+  const eventsWithMedia = events.map(event => {
+    const eventObj = event.toJSON();
+    
+    // If image is stored locally, construct full URL
+    if (event.imageStoredLocally && event.image) {
+      const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+      eventObj.image = `${serverBaseUrl}/uploads/events/${event.image}`;
+    }
+    
+    return eventObj;
+  });
+
   // Calculate pagination metadata
   const totalPages = Math.ceil(count / limit);
   const hasMore = page < totalPages;
@@ -101,7 +152,7 @@ exports.getEvents = asyncHandler(async (req, res, next) => {
       totalPages,
       hasMore
     },
-    data: events
+    data: eventsWithMedia
   });
 });
 
@@ -150,6 +201,12 @@ exports.getEvent = asyncHandler(async (req, res, next) => {
   const eventData = event.toJSON();
   eventData.registeredCount = registeredCount;
   eventData.availableSpots = event.capacity - registeredCount;
+
+  // Process image URL if stored locally
+  if (event.imageStoredLocally && event.image) {
+    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+    eventData.image = `${serverBaseUrl}/uploads/events/${event.image}`;
+  }
 
   // Check if current user is registered
   if (req.user) {
@@ -498,6 +555,66 @@ exports.updateRegistrationStatus = asyncHandler(async (req, res, next) => {
 });
 
 /**
+ * @desc    Upload event image
+ * @route   PUT /api/events/:id/media
+ * @access  Private (Admin, Moderator)
+ */
+exports.uploadEventMedia = asyncHandler(async (req, res, next) => {
+  const event = await Event.findByPk(req.params.id);
+
+  if (!event) {
+    return next(new ErrorResponse(`Event not found with id of ${req.params.id}`, 404));
+  }
+
+  // Check if user has permission (admin, moderator, or event creator)
+  if (req.user.role !== 'admin' && req.user.role !== 'moderator' && event.createdBy !== req.user.id) {
+    return next(new ErrorResponse('Not authorized to upload media for this event', 403));
+  }
+
+  // Handle file upload using multer
+  upload(req, res, async (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        // Multer error (file size, etc)
+        return next(new ErrorResponse(`File upload error: ${err.message}`, 400));
+      }
+      return next(err);
+    }
+
+    if (!req.file) {
+      return next(new ErrorResponse('Please upload a file', 400));
+    }
+
+    // Delete previous image if exists and is stored locally
+    if (event.imageStoredLocally && event.image) {
+      const oldImagePath = path.join(__dirname, '../../public/uploads/events', event.image);
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
+      }
+    }
+
+    // Update event with new image information
+    const updatedEvent = await event.update({
+      image: req.file.filename,
+      imageStoredLocally: true // Flag to indicate image is stored locally
+    });
+
+    // Construct full URL for response
+    const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+    const imageUrl = `${serverBaseUrl}/uploads/events/${req.file.filename}`;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: updatedEvent.id,
+        media: imageUrl,
+        relativePath: `/uploads/events/${req.file.filename}`
+      }
+    });
+  });
+});
+
+/**
  * @desc    Get all event categories
  * @route   GET /api/events/categories
  * @access  Public
@@ -636,18 +753,27 @@ exports.getMyEvents = asyncHandler(async (req, res, next) => {
   const upcomingEvents = [];
   const pastEvents = [];
 
+  // Process events to include full image URLs
   registrations.forEach(registration => {
-    const eventWithStatus = {
-      ...registration.event.toJSON(),
-      registrationStatus: registration.status,
-      registrationId: registration.id,
-      registrationDate: registration.registrationDate
-    };
-
-    if (new Date(registration.event.endDate) >= now) {
-      upcomingEvents.push(eventWithStatus);
+    const event = registration.event;
+    const eventData = event.toJSON();
+    
+    // Add registration info to event data
+    eventData.registrationStatus = registration.status;
+    eventData.registrationId = registration.id;
+    eventData.registrationDate = registration.registrationDate;
+    
+    // Process image URL if stored locally
+    if (event.imageStoredLocally && event.image) {
+      const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+      eventData.image = `${serverBaseUrl}/uploads/events/${event.image}`;
+    }
+    
+    // Sort into upcoming or past based on end date
+    if (new Date(event.endDate) >= now) {
+      upcomingEvents.push(eventData);
     } else {
-      pastEvents.push(eventWithStatus);
+      pastEvents.push(eventData);
     }
   });
 
@@ -678,9 +804,22 @@ exports.getMyCreatedEvents = asyncHandler(async (req, res, next) => {
     order: [['startDate', 'ASC']]
   });
 
+  // Process events to include full image URLs
+  const processedEvents = events.map(event => {
+    const eventData = event.toJSON();
+    
+    // Process image URL if stored locally
+    if (event.imageStoredLocally && event.image) {
+      const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+      eventData.image = `${serverBaseUrl}/uploads/events/${event.image}`;
+    }
+    
+    return eventData;
+  });
+
   res.status(200).json({
     success: true,
     count: events.length,
-    data: events
+    data: processedEvents
   });
 });
