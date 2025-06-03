@@ -8,6 +8,7 @@
 const asyncHandler = require('./async');
 const ErrorResponse = require('../utils/errorResponse');
 const { User } = require('../models');
+const bcrypt = require('bcrypt');
 
 /**
  * Аутентификация миддлвэрі
@@ -63,9 +64,19 @@ exports.protect = asyncHandler(async (req, res, next) => {
       return next(new ErrorResponse('Сіздің тіркелгіңіз бұғатталған. Әкімшіге хабарласыңыз', 403));
     }
     
-    // Құпия сөзді тікелей салыстыру
-    if (credentials.password !== user.password) {
-      console.log('Password mismatch in middleware:', credentials.password, user.password);
+    // Құпия сөзді тексеру (bcrypt хешпен салыстыру)
+    let isPasswordValid = false;
+    
+    // Егер құпия сөз хеш болса, bcrypt қолдану
+    if (user.password.startsWith('$2b$') || user.password.startsWith('$2a$')) {
+      isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+    } else {
+      // Ескі тікелей салыстыру (кері үйлесімділік үшін)
+      isPasswordValid = credentials.password === user.password;
+    }
+    
+    if (!isPasswordValid) {
+      console.log('Password mismatch in middleware');
       return next(new ErrorResponse('Жарамсыз тіркелгі деректері', 401));
     }
     
@@ -114,3 +125,78 @@ exports.authorize = (...roles) => {
     next();
   };
 };
+
+/**
+ * Опциональная аутентификация миддлвэрі
+ * 
+ * @description Пытается аутентифицировать пользователя, но не выдает ошибку,
+ * если аутентификация не удалась. Устанавливает req.user, если аутентификация
+ * прошла успешно, иначе req.user остается undefined.
+ */
+exports.optionalAuth = asyncHandler(async (req, res, next) => {
+  // API үшін: аутторизация тақырыбынан алу
+  let credentials;
+  
+  if (req.headers.authorization && req.headers.authorization.startsWith('Basic')) {
+    // Base64 кодталған деректерді декодтау
+    const base64Credentials = req.headers.authorization.split(' ')[1];
+    const decoded = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+    
+    // Формат: "email:password"
+    const [email, password] = decoded.split(':');
+    
+    if (email && password) {
+      credentials = { email, password };
+    }
+  } 
+  // Веб-қолданба үшін: сұраныс денесінен немесе сессиядан алу
+  else if (req.body.email && req.body.password) {
+    credentials = {
+      email: req.body.email,
+      password: req.body.password
+    };
+  }
+
+  // Если credentials не найдены, продолжаем без аутентификации
+  if (!credentials) {
+    return next();
+  }
+
+  try {
+    // Пайдаланушыны іздеу (email өрісі бойынша)
+    const user = await User.findOne({
+      where: { email: credentials.email },
+      attributes: ['id', 'username', 'firstName', 'lastName', 'email', 'password', 'role', 'isBlocked', 'createdAt', 'updatedAt']
+    });
+    
+    // Пайдаланушының бар-жоғын тексеру
+    if (!user) {
+      return next(); // Продолжаем без аутентификации
+    }
+    
+    // Пайдаланушы бұғатталған ба тексеру
+    if (user.isBlocked) {
+      return next(); // Продолжаем без аутентификации
+    }
+    
+    // Құпия сөзді тікелей салыстыру
+    if (credentials.password !== user.password) {
+      return next(); // Продолжаем без аутентификации
+    }
+    
+    // Соңғы кіру уақытын жаңарту
+    await user.update({
+      lastLogin: new Date()
+    });
+    
+    // Пайдаланушы аутентификацияланған - сұранысқа қосу
+    req.user = user.toJSON();
+    delete req.user.password; // Құпия сөзді алып тастау
+    
+    next();
+  } catch (err) {
+    console.error('Опциональная аутентификация қатесі:', err);
+    // Продолжаем без аутентификации при ошибке
+    next();
+  }
+});

@@ -1,6 +1,7 @@
 // controllers/borrowController.js
 const { Op } = require('sequelize');
 const ErrorResponse = require('../utils/errorResponse');
+const sendEmail = require('../utils/sendEmail');
 const db = require('../models');
 const Borrow = db.Borrow;
 const Book = db.Book;
@@ -638,18 +639,52 @@ exports.checkOverdueBorrows = async (req, res, next) => {
             { transaction }
           );
 
+          const message = `"${borrow.book.title}" кітабын қайтару мерзімі өтіп кетті. Кітапты мүмкіндігінше тезірек кітапханаға қайтарыңыз.`;
+          
           // Хабарландыру жасау
           await Notification.create(
             {
               userId: borrow.userId,
               title: 'Кітапты қайтару мерзімі өтіп кетті',
-              message: `"${borrow.book.title}" кітабын қайтару мерзімі өтіп кетті. Кітапты мүмкіндігінше тезірек кітапханаға қайтарыңыз.`,
+              message: message,
               type: 'overdue',
               relatedModel: 'Borrow',
               relatedId: borrow.id,
             },
             { transaction }
           );
+
+          // Email жіберу
+          try {
+            const overdueDate = borrow.dueDate.toLocaleDateString('kk-KZ');
+            const daysOverdue = Math.floor((new Date() - borrow.dueDate) / (1000 * 60 * 60 * 24));
+            
+            const emailHtml = `
+              <h2 style="color: #d32f2f;">Кітапты қайтару мерзімі өтіп кетті!</h2>
+              <p>Құрметті ${borrow.user.firstName} ${borrow.user.lastName},</p>
+              <p><strong style="color: #d32f2f;">${message}</strong></p>
+              <p><strong>Кітап мәліметтері:</strong></p>
+              <ul>
+                <li>Атауы: ${borrow.book.title}</li>
+                <li>Авторы: ${borrow.book.author}</li>
+                <li>Алынған күні: ${borrow.borrowDate.toLocaleDateString('kk-KZ')}</li>
+                <li>Қайтару мерзімі болған: ${overdueDate}</li>
+                <li><strong style="color: #d32f2f;">Кешіктірілген күндер саны: ${daysOverdue}</strong></li>
+              </ul>
+              <p>Кітапты дереу қайтаруыңызды өтінеміз. Кешіктірілген әр күн үшін айыппұл салынуы мүмкін.</p>
+              <hr>
+              <p>Құрметпен,<br>Нархоз Университеті Кітапханасы</p>
+            `;
+
+            await sendEmail({
+              email: borrow.user.email,
+              subject: `ШҰҒЫЛ: Кітапты қайтару мерзімі өтіп кетті - ${borrow.book.title}`,
+              message: message,
+              html: emailHtml
+            });
+          } catch (emailError) {
+            console.error(`Overdue email жіберу қатесі (${borrow.user.email}):`, emailError);
+          }
 
           // Транзакцияны аяқтау
           await transaction.commit();
@@ -716,6 +751,9 @@ exports.sendDueReminders = async (req, res, next) => {
 
     // Еске салу хабарландыруларын жасау
     let notificationsCreated = 0;
+    let emailsSent = 0;
+    
+    console.log(`[REMINDER] Найдено ${upcomingDueBorrows.length} заимствований с приближающимся сроком возврата`);
 
     for (const borrow of upcomingDueBorrows) {
       // Бұл қарызға алу үшін еске салу хабарландыруы бұрыннан бар-жоғын тексеру
@@ -734,17 +772,56 @@ exports.sendDueReminders = async (req, res, next) => {
 
       // Хабарландыру әлі жоқ болса ғана жасау
       if (!existingNotification) {
+        const dueDateFormatted = borrow.dueDate.toLocaleDateString('kk-KZ');
+        const message = `"${borrow.book.title}" кітабын қайтару мерзімі ${dueDateFormatted} күні аяқталады. Кітапты уақытында қайтаруыңызды сұраймыз.`;
+        
         // Жаңа хабарландыру жасау
         await Notification.create({
           userId: borrow.userId,
           title: 'Кітапты қайтару мерзімі туралы еске салу',
-          message: `"${borrow.book.title}" кітабын қайтару мерзімі ${borrow.dueDate.toLocaleDateString()} күні аяқталады. Кітапты уақытында қайтаруыңызды сұраймыз.`,
+          message: message,
           type: 'return',
           relatedModel: 'Borrow',
           relatedId: borrow.id,
         });
 
         notificationsCreated++;
+
+        // Email жіберу
+        try {
+          const emailHtml = `
+            <h2>Кітапты қайтару мерзімі туралы еске салу</h2>
+            <p>Құрметті ${borrow.user.firstName} ${borrow.user.lastName},</p>
+            <p>${message}</p>
+            <p><strong>Кітап мәліметтері:</strong></p>
+            <ul>
+              <li>Атауы: ${borrow.book.title}</li>
+              <li>Авторы: ${borrow.book.author}</li>
+              <li>Алынған күні: ${borrow.borrowDate.toLocaleDateString('kk-KZ')}</li>
+              <li>Қайтару мерзімі: ${dueDateFormatted}</li>
+            </ul>
+            <p>Кітапханаға уақытында келуіңізді сұраймыз.</p>
+            <hr>
+            <p>Құрметпен,<br>Нархоз Университеті Кітапханасы</p>
+          `;
+
+          const emailResult = await sendEmail({
+            email: borrow.user.email,
+            subject: `Кітапты қайтару мерзімі туралы еске салу - ${borrow.book.title}`,
+            message: message,
+            html: emailHtml
+          });
+
+          if (emailResult && emailResult.accepted && emailResult.accepted.length > 0) {
+            emailsSent++;
+            console.log(`[REMINDER] Email успешно отправлен на ${borrow.user.email}`);
+          } else {
+            console.log(`[REMINDER] Email не принят для ${borrow.user.email}`);
+          }
+        } catch (emailError) {
+          console.error(`[REMINDER] Ошибка отправки email для ${borrow.user.email}:`, emailError.message);
+          // Email жіберу сәтсіз болса да, процесті жалғастыру
+        }
       }
     }
 
@@ -752,6 +829,7 @@ exports.sendDueReminders = async (req, res, next) => {
       success: true,
       count: upcomingDueBorrows.length,
       notificationsCreated,
+      emailsSent,
       data: upcomingDueBorrows,
     });
   } catch (err) {
@@ -874,10 +952,21 @@ exports.extendBorrow = async (req, res, next) => {
       );
     }
 
-    // Қарызға алу мерзімі өтіп кеткенін тексеру
-    if (new Date() > borrow.dueDate) {
+    // Қарызға алу мерзімі өтіп кеткенін тексеру (1 күн грации-период)
+    const gracePeriod = 24 * 60 * 60 * 1000; // 1 күн миллисекундтарда
+    const extendDeadline = new Date(borrow.dueDate.getTime() + gracePeriod);
+    
+    if (new Date() > extendDeadline) {
       return next(
-        new ErrorResponse('Мерзімі өткен қарызға алуларды ұзартуға болмайды', 400)
+        new ErrorResponse('Мерзімі өткен қарызға алуларды ұзартуға болмайды (1 күн грации-период)', 400)
+      );
+    }
+
+    // Ұзарту санын тексеру (максимум 2 рет)
+    const maxExtensions = 2;
+    if (borrow.extensionCount >= maxExtensions) {
+      return next(
+        new ErrorResponse(`Бұл кітапты максимум ${maxExtensions} рет ұзартуға болады`, 400)
       );
     }
 
@@ -886,17 +975,18 @@ exports.extendBorrow = async (req, res, next) => {
       ? Math.ceil(borrow.book.borrowDuration / 2) 
       : 7;
     
-    const newDueDate = new Date(borrow.dueDate);
-    newDueDate.setDate(newDueDate.getDate() + extensionDays);
+    // Дұрыс күн есептеу - миллисекундтарды қолдану
+    const newDueDate = new Date(borrow.dueDate.getTime() + (extensionDays * 24 * 60 * 60 * 1000));
 
     // Транзакцияны бастау
     const transaction = await db.sequelize.transaction();
 
     try {
-      // Қайтару мерзімін жаңарту
+      // Қайтару мерзімі мен ұзарту санын жаңарту
       await borrow.update(
         {
           dueDate: newDueDate,
+          extensionCount: (borrow.extensionCount || 0) + 1,
         },
         { transaction }
       );

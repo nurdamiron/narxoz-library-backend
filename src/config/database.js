@@ -19,11 +19,18 @@ const sequelize = new Sequelize(
     host: config.host,
     dialect: config.dialect,
     logging: config.logging,
-    dialectOptions: config.dialectOptions,
+    dialectOptions: {
+      ...config.dialectOptions,
+      connectTimeout: 60000,
+      ssl: {
+        require: false,
+        rejectUnauthorized: false
+      }
+    },
     pool: {
       max: 10,
       min: 0,
-      acquire: 30000,
+      acquire: 60000,
       idle: 10000,
     },
     // Қосымша қауіпсіздік параметрлері

@@ -266,7 +266,7 @@ exports.updateMe = asyncHandler(async (req, res, next) => {
     firstName: req.body.firstName,
     lastName: req.body.lastName,
     email: req.body.email,
-    phone: req.body.phone,
+    phoneNumber: req.body.phone || req.body.phoneNumber, // phone және phoneNumber үшін қолдау
     faculty: req.body.faculty,
     specialization: req.body.specialization,
     year: req.body.year,
@@ -285,6 +285,19 @@ exports.updateMe = asyncHandler(async (req, res, next) => {
   // Пайдаланушы табылмаса қате қайтару
   if (!user) {
     return next(new ErrorResponse(`Пайдаланушы табылмады`, 404));
+  }
+
+  // Email уникальділігін тексеру
+  if (fieldsToUpdate.email && fieldsToUpdate.email !== user.email) {
+    const existingUser = await User.findOne({ 
+      where: { 
+        email: fieldsToUpdate.email,
+        id: { [require('sequelize').Op.ne]: user.id }
+      } 
+    });
+    if (existingUser) {
+      return next(new ErrorResponse('Бұл email басқа пайдаланушы қолданып жатыр', 400));
+    }
   }
 
   // Пайдаланушыны жаңарту

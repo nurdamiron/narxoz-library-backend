@@ -264,8 +264,8 @@ app.get('/api/book-cover-debug/:filename', (req, res) => {
         console.log('❌ Директория с обложками не существует');
       }
       
-      // Отправляем перенаправление на заглушку
-      return res.redirect('https://via.placeholder.com/200x300?text=Image+Not+Found');
+      // Отправляем перенаправление на локальную заглушку
+      return res.redirect('/uploads/covers/default-book-cover.jpg');
     }
     
     // Получаем информацию о файле
@@ -297,8 +297,8 @@ app.get('/api/book-cover-debug/:filename', (req, res) => {
   } catch (error) {
     console.error(`❌ Ошибка при отдаче обложки: ${error.message}`);
     
-    // В случае ошибки перенаправляем на заглушку
-    res.redirect('https://via.placeholder.com/200x300?text=Error');
+    // В случае ошибки перенаправляем на локальную заглушку
+    res.redirect('/uploads/covers/default-book-cover.jpg');
   }
 });
 

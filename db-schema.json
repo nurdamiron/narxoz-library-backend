@@ -1,0 +1,980 @@
+{
+  "Bookmarks": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "userId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "bookId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "addedAt",
+        "type": "datetime",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": [
+      {
+        "column": "userId",
+        "constraint": "Bookmarks_ibfk_1",
+        "referencedTable": "Users",
+        "referencedColumn": "id"
+      },
+      {
+        "column": "bookId",
+        "constraint": "Bookmarks_ibfk_2",
+        "referencedTable": "Books",
+        "referencedColumn": "id"
+      }
+    ]
+  },
+  "Books": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "title",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "author",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "categoryId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "cover",
+        "type": "varchar(255)",
+        "nullable": true,
+        "key": "",
+        "default": "/uploads/covers/default-book-cover.jpg",
+        "extra": ""
+      },
+      {
+        "name": "coverStoredLocally",
+        "type": "tinyint(1)",
+        "nullable": true,
+        "key": "",
+        "default": "1",
+        "extra": ""
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "publicationYear",
+        "type": "int",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "language",
+        "type": "enum('Русский','Английский','Казахский')",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "totalCopies",
+        "type": "int",
+        "nullable": false,
+        "key": "",
+        "default": "1",
+        "extra": ""
+      },
+      {
+        "name": "availableCopies",
+        "type": "int",
+        "nullable": false,
+        "key": "",
+        "default": "1",
+        "extra": ""
+      },
+      {
+        "name": "rating",
+        "type": "float",
+        "nullable": true,
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "name": "reviewCount",
+        "type": "int",
+        "nullable": true,
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "name": "borrowDuration",
+        "type": "int",
+        "nullable": false,
+        "key": "",
+        "default": "14",
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": [
+      {
+        "column": "categoryId",
+        "constraint": "Books_ibfk_1",
+        "referencedTable": "Categories",
+        "referencedColumn": "id"
+      }
+    ]
+  },
+  "Borrows": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "userId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "bookId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "borrowDate",
+        "type": "datetime",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "dueDate",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "returnDate",
+        "type": "datetime",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "status",
+        "type": "enum('active','returned','overdue')",
+        "nullable": true,
+        "key": "",
+        "default": "active",
+        "extra": ""
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": [
+      {
+        "column": "userId",
+        "constraint": "Borrows_ibfk_1",
+        "referencedTable": "Users",
+        "referencedColumn": "id"
+      },
+      {
+        "column": "bookId",
+        "constraint": "Borrows_ibfk_2",
+        "referencedTable": "Books",
+        "referencedColumn": "id"
+      }
+    ]
+  },
+  "Categories": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "UNI",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "description",
+        "type": "varchar(500)",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": []
+  },
+  "Notifications": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "userId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "title",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "message",
+        "type": "text",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "type",
+        "type": "enum('info','warning','return','overdue','system')",
+        "nullable": true,
+        "key": "",
+        "default": "info",
+        "extra": ""
+      },
+      {
+        "name": "relatedModel",
+        "type": "varchar(255)",
+        "nullable": true,
+        "key": "",
+        "default": "",
+        "extra": ""
+      },
+      {
+        "name": "relatedId",
+        "type": "int",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "read",
+        "type": "tinyint(1)",
+        "nullable": true,
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": [
+      {
+        "column": "userId",
+        "constraint": "Notifications_ibfk_1",
+        "referencedTable": "Users",
+        "referencedColumn": "id"
+      }
+    ]
+  },
+  "Reviews": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "bookId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "userId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "rating",
+        "type": "int",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "text",
+        "type": "text",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "isApproved",
+        "type": "tinyint(1)",
+        "nullable": true,
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "name": "isReported",
+        "type": "tinyint(1)",
+        "nullable": true,
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "name": "reportReason",
+        "type": "varchar(255)",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": [
+      {
+        "column": "bookId",
+        "constraint": "Reviews_ibfk_1",
+        "referencedTable": "Books",
+        "referencedColumn": "id"
+      },
+      {
+        "column": "userId",
+        "constraint": "Reviews_ibfk_2",
+        "referencedTable": "Users",
+        "referencedColumn": "id"
+      }
+    ]
+  },
+  "SequelizeMeta": {
+    "columns": [
+      {
+        "name": "name",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": []
+  },
+  "Users": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "username",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "UNI",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "password",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "firstName",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "lastName",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "email",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "UNI",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "phoneNumber",
+        "type": "varchar(255)",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "role",
+        "type": "varchar(255)",
+        "nullable": false,
+        "key": "",
+        "default": "student",
+        "extra": ""
+      },
+      {
+        "name": "faculty",
+        "type": "varchar(255)",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "specialization",
+        "type": "varchar(255)",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "studentId",
+        "type": "varchar(255)",
+        "nullable": true,
+        "key": "UNI",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "isBlocked",
+        "type": "tinyint(1)",
+        "nullable": true,
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "name": "lastLogin",
+        "type": "datetime",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": []
+  },
+  "event_categories": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "name",
+        "type": "varchar(100)",
+        "nullable": false,
+        "key": "UNI",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": []
+  },
+  "event_category_relations": {
+    "columns": [
+      {
+        "name": "eventId",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "categoryId",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": [
+      {
+        "column": "eventId",
+        "constraint": "event_category_relations_ibfk_1",
+        "referencedTable": "events",
+        "referencedColumn": "id"
+      },
+      {
+        "column": "categoryId",
+        "constraint": "event_category_relations_ibfk_2",
+        "referencedTable": "event_categories",
+        "referencedColumn": "id"
+      }
+    ]
+  },
+  "event_registrations": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "eventId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "userId",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "status",
+        "type": "enum('registered','attended','cancelled')",
+        "nullable": false,
+        "key": "",
+        "default": "registered",
+        "extra": ""
+      },
+      {
+        "name": "registrationDate",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      }
+    ],
+    "foreignKeys": [
+      {
+        "column": "eventId",
+        "constraint": "event_registrations_ibfk_1",
+        "referencedTable": "events",
+        "referencedColumn": "id"
+      },
+      {
+        "column": "userId",
+        "constraint": "event_registrations_ibfk_2",
+        "referencedTable": "Users",
+        "referencedColumn": "id"
+      }
+    ]
+  },
+  "events": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "nullable": false,
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "name": "title",
+        "type": "varchar(200)",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "type",
+        "type": "enum('workshop','lecture','exhibition','meetup','other')",
+        "nullable": false,
+        "key": "",
+        "default": "workshop",
+        "extra": ""
+      },
+      {
+        "name": "location",
+        "type": "varchar(200)",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "startDate",
+        "type": "datetime",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "endDate",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "capacity",
+        "type": "int",
+        "nullable": false,
+        "key": "",
+        "default": "20",
+        "extra": ""
+      },
+      {
+        "name": "registrationDeadline",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "image",
+        "type": "varchar(255)",
+        "nullable": true,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "isActive",
+        "type": "tinyint(1)",
+        "nullable": false,
+        "key": "",
+        "default": "1",
+        "extra": ""
+      },
+      {
+        "name": "createdBy",
+        "type": "int",
+        "nullable": false,
+        "key": "MUL",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "updatedAt",
+        "type": "datetime",
+        "nullable": false,
+        "key": "",
+        "default": null,
+        "extra": ""
+      },
+      {
+        "name": "imageStoredLocally",
+        "type": "tinyint(1)",
+        "nullable": true,
+        "key": "",
+        "default": "1",
+        "extra": ""
+      }
+    ],
+    "foreignKeys": [
+      {
+        "column": "createdBy",
+        "constraint": "events_ibfk_1",
+        "referencedTable": "Users",
+        "referencedColumn": "id"
+      }
+    ]
+  }
+}

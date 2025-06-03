@@ -28,7 +28,7 @@ const {
 } = require('../controllers/eventController');
 
 // Import middleware
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, optionalAuth } = require('../middleware/auth');
 
 // Event category routes
 router.route('/categories')
@@ -80,7 +80,7 @@ router.get('/:id/registrations', protect, authorize('admin', 'moderator'), getEv
 
 // Main event routes
 router.route('/')
-  .get(getEvents)
+  .get(optionalAuth, getEvents)
   .post(
     protect,
     authorize('admin', 'moderator'),
@@ -102,7 +102,7 @@ router.route('/')
   );
 
 router.route('/:id')
-  .get(getEvent)
+  .get(optionalAuth, getEvent)
   .put(
     protect,
     authorize('admin', 'moderator'),

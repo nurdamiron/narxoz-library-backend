@@ -15,6 +15,8 @@ const {
   uploadBookCover,
   getPopularBooks,
   getNewBooks,
+  getTopBooksByCategory,
+  getFilterOptions,
   updateInventory,
   getCategories,
   createCategory,
@@ -56,7 +58,11 @@ const bookValidation = [
   body('totalCopies')
     .optional()
     .isInt({ min: 1 })
-    .withMessage('Жалпы даналар саны кем дегенде 1 болуы керек')
+    .withMessage('Жалпы даналар саны кем дегенде 1 болуы керек'),
+  body('borrowDuration')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Қарызға алу ұзақтығы кем дегенде 1 күн болуы керек')
 ];
 
 /**
@@ -99,6 +105,8 @@ router
  */
 router.get('/popular', getPopularBooks);
 router.get('/new', getNewBooks);
+router.get('/top-by-category', getTopBooksByCategory);
+router.get('/filter-options', getFilterOptions);
 
 /**
  * Кітап CRUD маршруттары

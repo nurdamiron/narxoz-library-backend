@@ -7,6 +7,7 @@
 const { Op } = require('sequelize');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
+const sendEmail = require('../utils/sendEmail');
 const db = require('../models');
 const Notification = db.Notification;
 const User = db.User;
@@ -240,10 +241,55 @@ exports.broadcastNotification = asyncHandler(async (req, res, next) => {
   // Жаппай хабарландырулар жасау
   await Notification.bulkCreate(notifications);
   
+  // Email жіберу
+  let emailsSent = 0;
+  let emailsFailed = 0;
+  
+  console.log(`[BROADCAST] Начинаем отправку email для ${users.length} пользователей`);
+  
+  for (const user of users) {
+    try {
+      const fullUser = await User.findByPk(user.id);
+      if (fullUser && fullUser.email) {
+        const emailHtml = `
+          <h2>Жүйелік хабарландыру</h2>
+          <p>Құрметті ${fullUser.firstName} ${fullUser.lastName},</p>
+          <p>${message}</p>
+          <hr>
+          <p>Құрметпен,<br>Нархоз Университеті Кітапханасы</p>
+        `;
+
+        const emailResult = await sendEmail({
+          email: fullUser.email,
+          subject: title,
+          message: message,
+          html: emailHtml
+        });
+
+        if (emailResult && emailResult.accepted && emailResult.accepted.length > 0) {
+          emailsSent++;
+          console.log(`[BROADCAST] Email успешно отправлен на ${fullUser.email}`);
+        } else {
+          emailsFailed++;
+          console.log(`[BROADCAST] Email не принят для ${fullUser.email}`);
+        }
+      } else {
+        console.log(`[BROADCAST] Пользователь ${user.id} не имеет email адреса`);
+      }
+    } catch (emailError) {
+      emailsFailed++;
+      console.error(`[BROADCAST] Ошибка отправки email для пользователя ${user.id}:`, emailError.message);
+      // Email жіберу сәтсіз болса да процесті жалғастыру
+    }
+  }
+  
+  console.log(`[BROADCAST] Итого: отправлено ${emailsSent}, неудачных ${emailsFailed}`);
+  
   res.status(201).json({
     success: true,
     count: notifications.length,
-    message: `${notifications.length} пайдаланушыға хабарландыру жіберілді`
+    emailsSent: emailsSent,
+    message: `${notifications.length} пайдаланушыға хабарландыру жіберілді, ${emailsSent} email жіберілді`
   });
 });
 
@@ -262,12 +308,43 @@ exports.createNotification = asyncHandler(async (req, res, next) => {
     req.body.userId = req.params.userId;
   }
   
+  // Пайдаланушы мәліметтерін алу
+  const user = await User.findByPk(req.body.userId);
+  if (!user) {
+    return next(new ErrorResponse('Пайдаланушы табылмады', 404));
+  }
+  
   // Хабарландыру жасау
   const notification = await Notification.create(req.body);
+
+  // Email жіберуді сынау
+  let emailSent = false;
+  try {
+    const emailHtml = `
+      <h2>Кітапханадан хабарландыру</h2>
+      <p>Құрметті ${user.firstName} ${user.lastName},</p>
+      <p>${notification.message}</p>
+      <hr>
+      <p>Құрметпен,<br>Нархоз Университеті Кітапханасы</p>
+    `;
+
+    await sendEmail({
+      email: user.email,
+      subject: notification.title,
+      message: notification.message,
+      html: emailHtml
+    });
+
+    emailSent = true;
+  } catch (emailError) {
+    console.error(`Хабарландыру email жіберу қатесі (${user.email}):`, emailError);
+    // Email жіберу сәтсіз болса да хабарландыру сақталады
+  }
 
   res.status(201).json({
     success: true,
     data: notification,
+    emailSent
   });
 });
 

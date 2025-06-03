@@ -90,6 +90,26 @@ module.exports = (sequelize, DataTypes) => {
      */
     notes: {
       type: DataTypes.TEXT
+    },
+    
+    /**
+     * Ұзарту саны
+     * 
+     * @description Қарызға алу мерзімін ұзарту саны
+     */
+    extensionCount: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      validate: {
+        min: {
+          args: [0],
+          msg: 'Ұзарту саны теріс болмауы керек'
+        },
+        max: {
+          args: [5],
+          msg: 'Максимум 5 рет ұзартуға болады'
+        }
+      }
     }
   }, {
     hooks: {

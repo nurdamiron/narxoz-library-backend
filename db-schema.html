@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Narxoz Library Database Schema</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .tables {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .table {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 350px;
+      margin-bottom: 20px;
+    }
+    .table-header {
+      background-color: #f0f0f0;
+      padding: 10px;
+      font-weight: bold;
+      font-size: 16px;
+      border-bottom: 1px solid #ccc;
+    }
+    .table-body {
+      padding: 0;
+    }
+    .column {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+    }
+    .column:last-child {
+      border-bottom: none;
+    }
+    .column-pk {
+      color: #0066cc;
+      font-weight: bold;
+    }
+    .column-fk {
+      color: #00894d;
+      font-weight: bold;
+    }
+    .column-type {
+      color: #666;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .fk-list {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-top: 1px dashed #ccc;
+      font-size: 12px;
+    }
+    .fk-item {
+      margin-bottom: 5px;
+      color: #00894d;
+    }
+    .relationships {
+      margin-top: 40px;
+    }
+    .relationships h2 {
+      margin-bottom: 20px;
+    }
+    .relationship {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #eee;
+      border-radius: 5px;
+    }
+    .export-options {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .export-btn {
+      padding: 10px 20px;
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 0 10px;
+    }
+    .export-btn:hover {
+      background-color: #0052a3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Narxoz Library Database Schema</h1>
+    
+    <div class="tables">
+      
+        <div class="table">
+          <div class="table-header">Bookmarks</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column column-fk">
+                userId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column column-fk">
+                bookId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                addedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+              <div class="fk-list">
+                <strong>Foreign Keys:</strong>
+                
+                  <div class="fk-item">
+                    userId → Users.id
+                  </div>
+                
+                  <div class="fk-item">
+                    bookId → Books.id
+                  </div>
+                
+              </div>
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">Books</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column column-fk">
+                title <span class="column-type">varchar(255)</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                author <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column column-fk">
+                categoryId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                cover <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                coverStoredLocally <span class="column-type">tinyint(1)</span>
+                
+              </div>
+            
+              <div class="column ">
+                description <span class="column-type">text</span>
+                
+              </div>
+            
+              <div class="column ">
+                publicationYear <span class="column-type">int</span>
+                
+              </div>
+            
+              <div class="column ">
+                language <span class="column-type">enum('Русский','Английский','Казахский')</span>
+                
+              </div>
+            
+              <div class="column ">
+                totalCopies <span class="column-type">int</span>
+                
+              </div>
+            
+              <div class="column ">
+                availableCopies <span class="column-type">int</span>
+                
+              </div>
+            
+              <div class="column ">
+                rating <span class="column-type">float</span>
+                
+              </div>
+            
+              <div class="column ">
+                reviewCount <span class="column-type">int</span>
+                
+              </div>
+            
+              <div class="column ">
+                borrowDuration <span class="column-type">int</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+              <div class="fk-list">
+                <strong>Foreign Keys:</strong>
+                
+                  <div class="fk-item">
+                    categoryId → Categories.id
+                  </div>
+                
+              </div>
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">Borrows</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column column-fk">
+                userId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column column-fk">
+                bookId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                borrowDate <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                dueDate <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                returnDate <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                status <span class="column-type">enum('active','returned','overdue')</span>
+                
+              </div>
+            
+              <div class="column ">
+                notes <span class="column-type">text</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+              <div class="fk-list">
+                <strong>Foreign Keys:</strong>
+                
+                  <div class="fk-item">
+                    userId → Users.id
+                  </div>
+                
+                  <div class="fk-item">
+                    bookId → Books.id
+                  </div>
+                
+              </div>
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">Categories</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column ">
+                name <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                description <span class="column-type">varchar(500)</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">Notifications</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column column-fk">
+                userId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                title <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                message <span class="column-type">text</span>
+                
+              </div>
+            
+              <div class="column ">
+                type <span class="column-type">enum('info','warning','return','overdue','system')</span>
+                
+              </div>
+            
+              <div class="column ">
+                relatedModel <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                relatedId <span class="column-type">int</span>
+                
+              </div>
+            
+              <div class="column ">
+                read <span class="column-type">tinyint(1)</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+              <div class="fk-list">
+                <strong>Foreign Keys:</strong>
+                
+                  <div class="fk-item">
+                    userId → Users.id
+                  </div>
+                
+              </div>
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">Reviews</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column column-fk">
+                bookId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column column-fk">
+                userId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                rating <span class="column-type">int</span>
+                
+              </div>
+            
+              <div class="column ">
+                text <span class="column-type">text</span>
+                
+              </div>
+            
+              <div class="column ">
+                isApproved <span class="column-type">tinyint(1)</span>
+                
+              </div>
+            
+              <div class="column ">
+                isReported <span class="column-type">tinyint(1)</span>
+                
+              </div>
+            
+              <div class="column ">
+                reportReason <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+              <div class="fk-list">
+                <strong>Foreign Keys:</strong>
+                
+                  <div class="fk-item">
+                    bookId → Books.id
+                  </div>
+                
+                  <div class="fk-item">
+                    userId → Users.id
+                  </div>
+                
+              </div>
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">SequelizeMeta</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                name <span class="column-type">varchar(255)</span>
+                🔑
+              </div>
+            
+            
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">Users</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column ">
+                username <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                password <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                firstName <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                lastName <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                email <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                phoneNumber <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                role <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                faculty <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                specialization <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                studentId <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                isBlocked <span class="column-type">tinyint(1)</span>
+                
+              </div>
+            
+              <div class="column ">
+                lastLogin <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">event_categories</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column ">
+                name <span class="column-type">varchar(100)</span>
+                
+              </div>
+            
+              <div class="column ">
+                description <span class="column-type">text</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">event_category_relations</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                eventId <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column column-pk">
+                categoryId <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+              <div class="fk-list">
+                <strong>Foreign Keys:</strong>
+                
+                  <div class="fk-item">
+                    eventId → events.id
+                  </div>
+                
+                  <div class="fk-item">
+                    categoryId → event_categories.id
+                  </div>
+                
+              </div>
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">event_registrations</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column column-fk">
+                eventId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column column-fk">
+                userId <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                status <span class="column-type">enum('registered','attended','cancelled')</span>
+                
+              </div>
+            
+              <div class="column ">
+                registrationDate <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+            
+            
+              <div class="fk-list">
+                <strong>Foreign Keys:</strong>
+                
+                  <div class="fk-item">
+                    eventId → events.id
+                  </div>
+                
+                  <div class="fk-item">
+                    userId → Users.id
+                  </div>
+                
+              </div>
+            
+          </div>
+        </div>
+      
+        <div class="table">
+          <div class="table-header">events</div>
+          <div class="table-body">
+            
+              <div class="column column-pk">
+                id <span class="column-type">int</span>
+                🔑
+              </div>
+            
+              <div class="column ">
+                title <span class="column-type">varchar(200)</span>
+                
+              </div>
+            
+              <div class="column ">
+                description <span class="column-type">text</span>
+                
+              </div>
+            
+              <div class="column ">
+                type <span class="column-type">enum('workshop','lecture','exhibition','meetup','other')</span>
+                
+              </div>
+            
+              <div class="column ">
+                location <span class="column-type">varchar(200)</span>
+                
+              </div>
+            
+              <div class="column column-fk">
+                startDate <span class="column-type">datetime</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                endDate <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                capacity <span class="column-type">int</span>
+                
+              </div>
+            
+              <div class="column ">
+                registrationDeadline <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                image <span class="column-type">varchar(255)</span>
+                
+              </div>
+            
+              <div class="column ">
+                isActive <span class="column-type">tinyint(1)</span>
+                
+              </div>
+            
+              <div class="column column-fk">
+                createdBy <span class="column-type">int</span>
+                🔗
+              </div>
+            
+              <div class="column ">
+                createdAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                updatedAt <span class="column-type">datetime</span>
+                
+              </div>
+            
+              <div class="column ">
+                imageStoredLocally <span class="column-type">tinyint(1)</span>
+                
+              </div>
+            
+            
+            
+              <div class="fk-list">
+                <strong>Foreign Keys:</strong>
+                
+                  <div class="fk-item">
+                    createdBy → Users.id
+                  </div>
+                
+              </div>
+            
+          </div>
+        </div>
+      
+    </div>
+    
+    <div class="relationships">
+      <h2>Table Relationships</h2>
+      
+      
+          <div class="relationship">
+            <strong>Bookmarks</strong> has references to:
+            <ul>
+              
+                <li>userId → Users.id</li>
+              
+                <li>bookId → Books.id</li>
+              
+            </ul>
+          </div>
+        
+          <div class="relationship">
+            <strong>Books</strong> has references to:
+            <ul>
+              
+                <li>categoryId → Categories.id</li>
+              
+            </ul>
+          </div>
+        
+          <div class="relationship">
+            <strong>Borrows</strong> has references to:
+            <ul>
+              
+                <li>userId → Users.id</li>
+              
+                <li>bookId → Books.id</li>
+              
+            </ul>
+          </div>
+        
+          <div class="relationship">
+            <strong>Notifications</strong> has references to:
+            <ul>
+              
+                <li>userId → Users.id</li>
+              
+            </ul>
+          </div>
+        
+          <div class="relationship">
+            <strong>Reviews</strong> has references to:
+            <ul>
+              
+                <li>bookId → Books.id</li>
+              
+                <li>userId → Users.id</li>
+              
+            </ul>
+          </div>
+        
+          <div class="relationship">
+            <strong>event_category_relations</strong> has references to:
+            <ul>
+              
+                <li>eventId → events.id</li>
+              
+                <li>categoryId → event_categories.id</li>
+              
+            </ul>
+          </div>
+        
+          <div class="relationship">
+            <strong>event_registrations</strong> has references to:
+            <ul>
+              
+                <li>eventId → events.id</li>
+              
+                <li>userId → Users.id</li>
+              
+            </ul>
+          </div>
+        
+          <div class="relationship">
+            <strong>events</strong> has references to:
+            <ul>
+              
+                <li>createdBy → Users.id</li>
+              
+            </ul>
+          </div>
+        
+    </div>
+    
+    <div class="export-options">
+      <h3>Export Options</h3>
+      <button class="export-btn" onclick="printSchema()">Print Schema</button>
+      <button class="export-btn" onclick="downloadAsPDF()">Download as PDF</button>
+    </div>
+  </div>
+
+  <script>
+    function printSchema() {
+      window.print();
+    }
+    
+    function downloadAsPDF() {
+      alert('This feature requires a PDF generation library. For now, you can use the browser's print function and save as PDF.');
+      window.print();
+    }
+  </script>
+</body>
+</html>

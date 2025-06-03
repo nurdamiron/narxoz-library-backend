@@ -468,3 +468,34 @@ exports.reportReview = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * @desc    Пайдаланушының өз пікірлерін алу
+ * @route   GET /api/reviews/my
+ * @access  Private
+ * @description Бұл функция ағымдағы пайдаланушының барлық пікірлерін қайтарады.
+ * Пайдаланушы өзінің барлық пікірлерін көре алады, соның ішінде бекітілмеген
+ * және шағымдалған пікірлерді де.
+ */
+exports.getMyReviews = async (req, res, next) => {
+  try {
+    // Пайдаланушының барлық пікірлерін алу
+    const reviews = await Review.findAll({
+      where: {
+        userId: req.user.id
+      },
+      order: [['createdAt', 'DESC']],
+      include: [
+        {
+          model: Book,
+          as: 'book',
+          attributes: ['id', 'title', 'author', 'cover']
+        }
+      ]
+    });
+    
+    res.status(200).json(reviews);
+  } catch (err) {
+    next(err);
+  }
+};

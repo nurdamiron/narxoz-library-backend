@@ -6,6 +6,9 @@ const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Маршрут для получения отзывов текущего пользователя
+router.get('/my', protect, reviewController.getMyReviews);
+
 // Базовые маршруты для отзывов
 router
   .route('/')

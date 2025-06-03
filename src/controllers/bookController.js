@@ -56,6 +56,10 @@ const upload = multer({
  * үшін кітаптардың бетбелгіде бар-жоғын көрсетеді.
  */
 exports.getBooks = async (req, res, next) => {
+  console.log('📚 GetBooks сұранысы алынды:', {
+    query: req.query,
+    user: req.user ? req.user.id : 'anonymous'
+  });
   try {
     // Сұраныс опцияларын инициализациялау
     const queryOptions = {
@@ -77,8 +81,7 @@ exports.getBooks = async (req, res, next) => {
         [Op.or]: [
           { title: { [Op.like]: `%${req.query.search}%` } },
           { author: { [Op.like]: `%${req.query.search}%` } },
-          { description: { [Op.like]: `%${req.query.search}%` } },
-          { isbn: { [Op.like]: `%${req.query.search}%` } }, // ISBN бойынша іздеу
+          { description: { [Op.like]: `%${req.query.search}%` } }
         ],
       };
     }
@@ -90,11 +93,18 @@ exports.getBooks = async (req, res, next) => {
 
     // Тіл бойынша сүзу (егер көрсетілген болса)
     if (req.query.language) {
+      console.log('🌐 Тіл бойынша сүзу:', req.query.language);
       queryOptions.where.language = req.query.language;
     }
     
-    // Жыл аралығы бойынша сүзу
-    if (req.query.yearFrom || req.query.yearTo) {
+    // Жыл бойынша сүзу (бір жыл немесе жыл аралығы)
+    if (req.query.year) {
+      const year = parseInt(req.query.year, 10);
+      console.log('📅 Жыл бойынша сүзу:', year);
+      if (!isNaN(year)) {
+        queryOptions.where.publicationYear = year;
+      }
+    } else if (req.query.yearFrom || req.query.yearTo) {
       queryOptions.where.publicationYear = {};
       
       if (req.query.yearFrom) {
@@ -112,7 +122,34 @@ exports.getBooks = async (req, res, next) => {
     }
     
     // Сұрыптау
-    if (req.query.sortBy) {
+    if (req.query.sort) {
+      // Жаңа формат: -createdAt, title, -publicationYear т.б.
+      const sortParam = req.query.sort;
+      const isDescending = sortParam.startsWith('-');
+      const field = isDescending ? sortParam.substring(1) : sortParam;
+      const order = isDescending ? 'DESC' : 'ASC';
+      
+      switch (field) {
+        case 'title':
+          queryOptions.order = [['title', order]];
+          break;
+        case 'author':
+          queryOptions.order = [['author', order]];
+          break;
+        case 'publicationYear':
+          queryOptions.order = [['publicationYear', order]];
+          break;
+        case 'rating':
+          queryOptions.order = [['rating', order]];
+          break;
+        case 'createdAt':
+          queryOptions.order = [['createdAt', order]];
+          break;
+        default:
+          queryOptions.order = [['createdAt', 'DESC']];
+      }
+    } else if (req.query.sortBy) {
+      // Ескі формат үшін қолдау (кері үйлесімділік)
       const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
       
       switch (req.query.sortBy) {
@@ -126,7 +163,6 @@ exports.getBooks = async (req, res, next) => {
           queryOptions.order = [['publicationYear', sortOrder]];
           break;
         case 'popularity':
-          // Popularity sorting would ideally use a counter of borrows/bookmarks
           queryOptions.order = [['createdAt', sortOrder]];
           break;
         default:
@@ -213,6 +249,8 @@ exports.getBooks = async (req, res, next) => {
       };
     }
 
+    console.log(`✅ Кітаптар сәтті жүктелді: ${booksWithBookmarkStatus.length} кітап, барлығы: ${count}`);
+    
     res.status(200).json({
       success: true,
       count: booksWithBookmarkStatus.length,
@@ -818,6 +856,62 @@ exports.getPopularBooks = async (req, res, next) => {
 };
 
 /**
+ * @desc    Фильтр опцияларын алу (тілдер мен жылдар)
+ * @route   GET /api/books/filter-options
+ * @access  Public
+ * 
+ * @description Бұл функция барлық қолжетімді тілдер мен жылдарды қайтарады.
+ */
+exports.getFilterOptions = async (req, res, next) => {
+  try {
+    console.log('🔍 Фильтр опцияларын жүктеу...');
+    
+    // Барлық бірегей тілдерді алу
+    const languages = await Book.findAll({
+      attributes: [
+        [Sequelize.fn('DISTINCT', Sequelize.col('language')), 'language']
+      ],
+      where: {
+        language: { [Op.ne]: null }
+      },
+      raw: true
+    });
+    
+    // Барлық бірегей жылдарды алу
+    const years = await Book.findAll({
+      attributes: [
+        [Sequelize.fn('DISTINCT', Sequelize.col('publicationYear')), 'year']
+      ],
+      where: {
+        publicationYear: { [Op.ne]: null }
+      },
+      order: [['publicationYear', 'DESC']],
+      raw: true
+    });
+    
+    // Массивке түрлендіру
+    const languageList = languages.map(l => l.language).filter(Boolean);
+    const yearList = years.map(y => y.year).filter(Boolean);
+    
+    console.log('✅ Фильтр опциялары табылды:', {
+      languages: languageList,
+      years: yearList.length + ' жыл'
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        languages: languageList,
+        years: yearList
+      }
+    });
+  } catch (err) {
+    console.error('❌ Фильтр опцияларын алу қатесі:', err);
+    next(err);
+  }
+};
+
+/**
  * @desc    Жаңа қосылған кітаптарды алу
  * @route   GET /api/books/new
  * @access  Public
@@ -874,6 +968,111 @@ exports.getNewBooks = async (req, res, next) => {
       data: booksWithFullUrls,
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * @desc    ТОП кітаптарды категориялар бойынша алу
+ * @route   GET /api/books/top-by-category
+ * @access  Public
+ * 
+ * @description Бұл функция ең танымал кітаптарды әр категория үшін қайтарады.
+ * Танымалдылық рейтинг, бетбелгілер саны және қарызға алулар саны бойынша анықталады.
+ */
+exports.getTopBooksByCategory = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 3; // Әр категория үшін кітаптар саны
+    const minRating = parseFloat(req.query.minRating) || 0; // Минимум рейтинг
+    
+    console.log('📊 ТОП кітаптарды категориялар бойынша алу...', { limit, minRating });
+    
+    // Барлық категорияларды алу
+    const categories = await Category.findAll({
+      attributes: ['id', 'name', 'description'],
+      order: [['name', 'ASC']],
+    });
+    
+    const categoriesWithTopBooks = [];
+    
+    // Әр категория үшін ТОП кітаптарды алу
+    for (const category of categories) {
+      const books = await Book.findAll({
+        where: {
+          categoryId: category.id,
+          rating: { [Op.gte]: minRating }
+        },
+        include: [
+          {
+            model: Category,
+            as: 'category',
+            attributes: ['id', 'name'],
+          },
+          {
+            model: Bookmark,
+            as: 'bookmarks',
+            attributes: [],
+          }
+        ],
+        attributes: {
+          include: [
+            // Бетбелгілер санын есептеу
+            [Sequelize.literal('(SELECT COUNT(*) FROM Bookmarks WHERE Bookmarks.bookId = Book.id)'), 'bookmarkCount'],
+            // Белсенді қарызға алулар санын есептеу  
+            [Sequelize.literal('(SELECT COUNT(*) FROM Borrows WHERE Borrows.bookId = Book.id AND Borrows.status = "active")'), 'activeBorrowsCount'],
+            // Жалпы қарызға алулар санын есептеу
+            [Sequelize.literal('(SELECT COUNT(*) FROM Borrows WHERE Borrows.bookId = Book.id)'), 'totalBorrowsCount']
+          ]
+        },
+        order: [
+          // Танымалдық формуласы: (рейтинг * 2) + (бетбелгілер саны * 0.5) + (жалпы қарызға алулар саны * 0.3)
+          [Sequelize.literal('(rating * 2 + (SELECT COUNT(*) FROM Bookmarks WHERE Bookmarks.bookId = Book.id) * 0.5 + (SELECT COUNT(*) FROM Borrows WHERE Borrows.bookId = Book.id) * 0.3)'), 'DESC']
+        ],
+        limit: limit
+      });
+      
+      // Егер категорияда кітаптар болса, оларды қосу
+      if (books.length > 0) {
+        // Кітаптардың мұқаба URL-дарын толық URL-дарға түрлендіру
+        const booksWithFullUrls = books.map(book => {
+          const bookObj = book.toJSON();
+          
+          if (bookObj.cover && !bookObj.cover.startsWith('http')) {
+            const serverUrl = `${req.protocol}://${req.get('host')}`;
+            
+            // Сохраняем оригинальный относительный путь для клиентской диагностики
+            bookObj.relativeCoverPath = bookObj.cover;
+            bookObj.cover = `${serverUrl}${bookObj.cover}`;
+            
+            // Проверяем существование файла обложки
+            const coverFilePath = path.join(__dirname, '../../public', bookObj.relativeCoverPath);
+            bookObj.coverFileExists = fs.existsSync(coverFilePath);
+            bookObj.coverFileSize = bookObj.coverFileExists ? fs.statSync(coverFilePath).size : 0;
+          }
+          
+          return bookObj;
+        });
+        
+        categoriesWithTopBooks.push({
+          category: {
+            id: category.id,
+            name: category.name,
+            description: category.description
+          },
+          books: booksWithFullUrls
+        });
+      }
+    }
+    
+    console.log(`✅ ТОП кітаптар табылды: ${categoriesWithTopBooks.length} категория`);
+    
+    res.status(200).json({
+      success: true,
+      count: categoriesWithTopBooks.length,
+      data: categoriesWithTopBooks,
+    });
+  } catch (err) {
+    console.error('❌ ТОП кітаптарды алу кезінде қате:', err);
     next(err);
   }
 };

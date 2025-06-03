@@ -126,8 +126,8 @@ exports.getEvents = asyncHandler(async (req, res, next) => {
     order: [['startDate', 'ASC']]
   });
 
-  // Process image URLs
-  const eventsWithMedia = events.map(event => {
+  // Process image URLs and add registration count
+  const eventsWithMedia = await Promise.all(events.map(async (event) => {
     const eventObj = event.toJSON();
     
     // If image is stored locally, construct full URL
@@ -136,8 +136,21 @@ exports.getEvents = asyncHandler(async (req, res, next) => {
       eventObj.image = `${serverBaseUrl}/uploads/events/${event.image}`;
     }
     
+    // Add registration count
+    const registeredCount = await EventRegistration.count({
+      where: {
+        eventId: event.id,
+        status: {
+          [Op.or]: ['registered', 'attended']
+        }
+      }
+    });
+    
+    eventObj.registeredCount = registeredCount;
+    eventObj.availableSpots = event.capacity - registeredCount;
+    
     return eventObj;
-  });
+  }));
 
   // Calculate pagination metadata
   const totalPages = Math.ceil(count / limit);
@@ -393,67 +406,112 @@ exports.registerForEvent = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Registration deadline has passed for this event', 400));
   }
 
-  // Check if event capacity is reached
-  const registeredCount = await EventRegistration.count({
-    where: {
-      eventId: event.id,
-      status: {
-        [Op.or]: ['registered', 'attended']
+  // Use a transaction to prevent race conditions
+  const { sequelize } = require('../models');
+  const transaction = await sequelize.transaction();
+  
+  try {
+    // Check if user is already registered (within transaction)
+    const existingRegistration = await EventRegistration.findOne({
+      where: {
+        eventId: event.id,
+        userId: req.user.id
+      },
+      transaction
+    });
+
+    if (existingRegistration) {
+      // If previously cancelled, allow re-registration
+      if (existingRegistration.status === 'cancelled') {
+        // Check capacity again within transaction
+        const registeredCount = await EventRegistration.count({
+          where: {
+            eventId: event.id,
+            status: {
+              [Op.or]: ['registered', 'attended']
+            }
+          },
+          transaction
+        });
+
+        if (registeredCount >= event.capacity) {
+          await transaction.rollback();
+          return next(new ErrorResponse('This event has reached its maximum capacity', 400));
+        }
+
+        await existingRegistration.update({
+          status: 'registered',
+          registrationDate: new Date()
+        }, { transaction });
+
+        await transaction.commit();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Your registration has been restored',
+          data: existingRegistration
+        });
       }
+
+      await transaction.rollback();
+      return next(new ErrorResponse('You are already registered for this event', 400));
     }
-  });
 
-  if (registeredCount >= event.capacity) {
-    return next(new ErrorResponse('This event has reached its maximum capacity', 400));
-  }
+    // Check if event capacity is reached (within transaction)
+    const registeredCount = await EventRegistration.count({
+      where: {
+        eventId: event.id,
+        status: {
+          [Op.or]: ['registered', 'attended']
+        }
+      },
+      transaction
+    });
 
-  // Check if user is already registered
-  const existingRegistration = await EventRegistration.findOne({
-    where: {
+    if (registeredCount >= event.capacity) {
+      await transaction.rollback();
+      return next(new ErrorResponse('This event has reached its maximum capacity', 400));
+    }
+
+    // Create the registration (within transaction)
+    const registration = await EventRegistration.create({
       eventId: event.id,
-      userId: req.user.id
-    }
-  });
+      userId: req.user.id,
+      status: 'registered',
+      registrationDate: new Date()
+    }, { transaction });
 
-  if (existingRegistration) {
-    // If previously cancelled, allow re-registration
-    if (existingRegistration.status === 'cancelled') {
-      await existingRegistration.update({
-        status: 'registered',
-        registrationDate: new Date()
+    await transaction.commit();
+
+    // Send notification to the event creator (outside transaction)
+    try {
+      await Notification.create({
+        userId: event.createdBy,
+        eventId: event.id,
+        type: 'new_registration',
+        message: `A new user has registered for your event "${event.title}".`,
+        read: false
       });
-
-      return res.status(200).json({
-        success: true,
-        message: 'Your registration has been restored',
-        data: existingRegistration
-      });
+    } catch (notificationError) {
+      console.error('Failed to create notification:', notificationError);
+      // Don't fail the registration if notification creation fails
     }
 
-    return next(new ErrorResponse('You are already registered for this event', 400));
+    res.status(201).json({
+      success: true,
+      data: registration
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    
+    // Handle unique constraint violation
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return next(new ErrorResponse('You are already registered for this event', 400));
+    }
+    
+    throw error;
   }
-
-  // Create the registration
-  const registration = await EventRegistration.create({
-    eventId: event.id,
-    userId: req.user.id,
-    status: 'registered',
-    registrationDate: new Date()
-  });
-
-  // Send notification to the event creator
-  await Notification.create({
-    userId: event.createdBy,
-    eventId: event.id,
-    type: 'new_registration',
-    message: `A new user has registered for your event "${event.title}".`,
-    read: false
-  });
-
-  res.status(201).json({
-    success: true,
-    data: registration
-  });
 });
 
 /**
