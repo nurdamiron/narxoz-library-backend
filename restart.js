@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Kill existing server process
-exec('lsof -ti :5001 | xargs kill -9', (error, stdout, stderr) => {
+exec('lsof -ti :5002 | xargs kill -9', (error, stdout, stderr) => {
   if (error) {
     console.log(`Could not kill existing process: ${error.message}`);
     return;

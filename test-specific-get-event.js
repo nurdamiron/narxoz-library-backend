@@ -4,7 +4,7 @@ async function testGetEvent() {
   try {
     console.log('=== Testing GET Event with Authentication ===\n');
     
-    const baseURL = 'http://localhost:5001/api';
+    const baseURL = 'http://localhost:5002/api';
     const eventId = 5;
     
     // Test credentials

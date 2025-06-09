@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Конфигурация
-const BASE_URL = 'http://localhost:5001/api';
+const BASE_URL = 'http://localhost:5002/api';
 const TEST_TIMEOUT = 5000;
 
 // Тестовые данные пользователей
@@ -412,7 +412,7 @@ async function checkServerAvailability() {
   const serverAvailable = await checkServerAvailability();
   
   if (!serverAvailable) {
-    log('❌ Сервер недоступен! Убедитесь, что сервер запущен на порту 5001', 'red');
+    log('❌ Сервер недоступен! Убедитесь, что сервер запущен на порту 5002', 'red');
     process.exit(1);
   }
   

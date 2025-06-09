@@ -147,6 +147,27 @@ app.use('/api/books/covers', express.static(path.join(__dirname, '../public/uplo
   }
 }));
 
+// Обработка изображений событий
+app.use('/api/events/media', express.static(path.join(__dirname, '../public/uploads/events'), {
+  maxAge: '1h',
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, path) => {
+    // Устанавливаем правильные заголовки для изображений
+    if (path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png') || path.endsWith('.gif')) {
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      // Разрешаем CORS для всех источников
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      // Добавляем дополнительные заголовки для исправления CORS
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      // Отключаем строгие политики безопасности для изображений
+      res.removeHeader('Cross-Origin-Opener-Policy');
+      res.removeHeader('Cross-Origin-Embedder-Policy');
+    }
+  }
+}));
+
 // Special endpoint for NarXoz book
 app.get('/api/narxoz-cover', (req, res) => {
   // Set CORS headers
@@ -183,6 +204,59 @@ app.get('/check-file/:filename', (req, res) => {
     });
   } else {
     res.json({ exists: false, path: filePath });
+  }
+});
+
+// Тестовый маршрут для проверки изображений событий
+app.get('/test-events', (req, res) => {
+  const eventsDir = path.join(__dirname, '../public/uploads/events');
+  
+  try {
+    // Проверяем существование директории
+    if (!fs.existsSync(eventsDir)) {
+      return res.json({
+        success: false,
+        message: 'Директория с изображениями событий не существует',
+        path: eventsDir
+      });
+    }
+    
+    // Читаем список файлов
+    const files = fs.readdirSync(eventsDir);
+    
+    // Формируем URL для каждого файла
+    const eventImages = files.map(file => {
+      const filePath = path.join(eventsDir, file);
+      const stats = fs.statSync(filePath);
+      
+      return {
+        filename: file,
+        size: stats.size,
+        created: stats.birthtime,
+        url: `/uploads/events/${file}`,
+        absoluteUrl: `${req.protocol}://${req.get('host')}/uploads/events/${file}`
+      };
+    });
+    
+    res.json({
+      success: true,
+      path: eventsDir,
+      count: eventImages.length,
+      server: {
+        hostname: req.hostname,
+        protocol: req.protocol,
+        host: req.get('host'),
+        origin: req.get('origin') || 'unknown',
+        ip: req.ip
+      },
+      eventImages: eventImages
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `Ошибка при проверке изображений событий: ${error.message}`,
+      path: eventsDir
+    });
   }
 });
 
@@ -430,7 +504,7 @@ app.get('/api/docs', (req, res) => {
 app.use(errorHandler);
 
 // Серверді іске қосу
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5002;
 
 const server = app.listen(PORT, () => {
   console.log(`Сервер ${process.env.NODE_ENV} режимінде ${PORT} портта іске қосылды`);

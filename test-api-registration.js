@@ -4,7 +4,7 @@ async function testAPIRegistration() {
   try {
     console.log('=== Testing API Registration Endpoint ===\n');
     
-    const baseURL = 'http://localhost:5001/api';
+    const baseURL = 'http://localhost:5002/api';
     
     // Test credentials
     const credentials = {
