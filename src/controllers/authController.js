@@ -225,8 +225,8 @@ exports.registerUser = async (req, res, next) => {
     }
 
     // Рөлдің жарамды екенін тексеру
-    if (role !== 'admin' && role !== 'student' && role !== 'moderator') {
-      return next(new ErrorResponse('Рөл тек "admin", "moderator" немесе "student" болуы керек', 400));
+    if (role !== 'admin' && role !== 'student' && role !== 'moderator' && role !== 'teacher') {
+      return next(new ErrorResponse('Рөл тек "admin", "moderator", "teacher" немесе "student" болуы керек', 400));
     }
     
     // Модераторлар админ рөлін бере алмайды

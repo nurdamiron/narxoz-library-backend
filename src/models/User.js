@@ -116,8 +116,8 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'student',
       validate: {
         isIn: {
-          args: [['admin', 'student', 'moderator', 'librarian']],
-          msg: 'Рөл admin, moderator, librarian немесе student болуы керек'
+          args: [['admin', 'student', 'moderator', 'librarian', 'teacher']],
+          msg: 'Рөл admin, moderator, librarian, teacher немесе student болуы керек'
         }
       }
     },

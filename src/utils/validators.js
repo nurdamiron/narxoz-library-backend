@@ -87,8 +87,8 @@ const userValidationRules = () => {
       .withMessage('Құпия сөз кем дегенде 6 таңбадан тұруы керек'),
     body('role')
       .optional()
-      .isIn(['user', 'admin', 'moderator'])
-      .withMessage('Рөл user, admin немесе moderator болуы керек'),
+      .isIn(['user', 'admin', 'moderator', 'student', 'teacher'])
+      .withMessage('Рөл user, admin, moderator, student немесе teacher болуы керек'),
     body('phone')
       .optional()
       .trim(),

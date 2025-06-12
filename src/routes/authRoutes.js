@@ -91,8 +91,8 @@ const registerUserValidation = [
   body('role')
     .notEmpty()
     .withMessage('Рөл міндетті')
-    .isIn(['admin', 'student', 'moderator'])
-    .withMessage('Рөл тек "admin", "moderator" немесе "student" болуы керек'),
+    .isIn(['admin', 'student', 'moderator', 'teacher'])
+    .withMessage('Рөл тек "admin", "moderator", "teacher" немесе "student" болуы керек'),
   body('phoneNumber')
     .optional()
     .matches(/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/im)
