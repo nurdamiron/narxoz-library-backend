@@ -538,6 +538,15 @@ exports.cancelRegistration = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('You are not registered for this event', 404));
   }
 
+  // If already cancelled, return success
+  if (registration.status === 'cancelled') {
+    return res.status(200).json({
+      success: true,
+      data: {},
+      message: 'Registration already cancelled'
+    });
+  }
+
   // If the event has already started, don't allow cancellation
   if (new Date() > new Date(event.startDate)) {
     return next(new ErrorResponse('Cannot cancel registration after event has started', 400));
@@ -548,14 +557,21 @@ exports.cancelRegistration = asyncHandler(async (req, res, next) => {
     status: 'cancelled'
   });
 
-  // Notify event creator
-  await Notification.create({
-    userId: event.createdBy,
-    eventId: event.id,
-    type: 'cancelled_registration',
-    message: `A user has cancelled their registration for your event "${event.title}".`,
-    read: false
-  });
+  // Notify event creator (optional - don't fail if notification fails)
+  try {
+    if (event.createdBy) {
+      await Notification.create({
+        userId: event.createdBy,
+        eventId: event.id,
+        type: 'cancelled_registration',
+        message: `A user has cancelled their registration for your event "${event.title}".`,
+        read: false
+      });
+    }
+  } catch (notificationError) {
+    console.error('Failed to create notification:', notificationError);
+    // Continue execution - notification failure shouldn't break cancellation
+  }
 
   res.status(200).json({
     success: true,
@@ -783,6 +799,7 @@ exports.getEventRegistrations = asyncHandler(async (req, res, next) => {
  * @access  Private
  */
 exports.getMyEvents = asyncHandler(async (req, res, next) => {
+  // Get registered events
   const registrations = await EventRegistration.findAll({
     where: { 
       userId: req.user.id,
@@ -806,12 +823,26 @@ exports.getMyEvents = asyncHandler(async (req, res, next) => {
     order: [[{ model: Event, as: 'event' }, 'startDate', 'ASC']]
   });
 
+  // Get created events
+  const createdEvents = await Event.findAll({
+    where: { createdBy: req.user.id },
+    include: [
+      {
+        model: EventCategory,
+        as: 'categories',
+        through: { attributes: [] }
+      }
+    ],
+    order: [['startDate', 'ASC']]
+  });
+
   // Format response to group by upcoming and past events
   const now = new Date();
   const upcomingEvents = [];
   const pastEvents = [];
+  const processedEventIds = new Set();
 
-  // Process events to include full image URLs
+  // Process registered events
   registrations.forEach(registration => {
     const event = registration.event;
     const eventData = event.toJSON();
@@ -820,6 +851,7 @@ exports.getMyEvents = asyncHandler(async (req, res, next) => {
     eventData.registrationStatus = registration.status;
     eventData.registrationId = registration.id;
     eventData.registrationDate = registration.registrationDate;
+    eventData.isCreator = event.createdBy === req.user.id;
     
     // Process image URL if stored locally
     if (event.imageStoredLocally && event.image) {
@@ -827,13 +859,45 @@ exports.getMyEvents = asyncHandler(async (req, res, next) => {
       eventData.image = `${serverBaseUrl}/uploads/events/${event.image}`;
     }
     
-    // Sort into upcoming or past based on end date
-    if (new Date(event.endDate) >= now) {
+    // Sort into upcoming or past based on start date
+    if (new Date(event.startDate) >= now) {
       upcomingEvents.push(eventData);
     } else {
       pastEvents.push(eventData);
     }
+    
+    processedEventIds.add(event.id);
   });
+
+  // Process created events (avoid duplicates)
+  createdEvents.forEach(event => {
+    if (!processedEventIds.has(event.id)) {
+      const eventData = event.toJSON();
+      
+      // Mark as creator's event without registration
+      eventData.isCreator = true;
+      eventData.registrationStatus = null;
+      eventData.registrationId = null;
+      eventData.registrationDate = null;
+      
+      // Process image URL if stored locally
+      if (event.imageStoredLocally && event.image) {
+        const serverBaseUrl = `${req.protocol}://${req.get('host')}`;
+        eventData.image = `${serverBaseUrl}/uploads/events/${event.image}`;
+      }
+      
+      // Sort into upcoming or past based on start date
+      if (new Date(event.startDate) >= now) {
+        upcomingEvents.push(eventData);
+      } else {
+        pastEvents.push(eventData);
+      }
+    }
+  });
+
+  // Sort events by date
+  upcomingEvents.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+  pastEvents.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
 
   res.status(200).json({
     success: true,

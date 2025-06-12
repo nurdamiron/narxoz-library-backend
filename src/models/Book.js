@@ -70,7 +70,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     cover: {
       type: DataTypes.STRING,
-      defaultValue: '/uploads/covers/default-book-cover.jpg'
+      defaultValue: '/uploads/covers/no-image.png'
     },
     
     /**

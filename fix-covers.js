@@ -32,7 +32,7 @@ async function cloneExistingCover() {
     const sourcePath = path.join(coversDir, existingFiles[0]);
     
     // Create a default cover
-    const defaultCoverPath = path.join(coversDir, 'default-book-cover.jpg');
+    const defaultCoverPath = path.join(coversDir, 'no-image.png');
     
     if (!fs.existsSync(defaultCoverPath)) {
       fs.copyFileSync(sourcePath, defaultCoverPath);
@@ -41,7 +41,7 @@ async function cloneExistingCover() {
       console.log(`ℹ️ Default cover already exists: ${defaultCoverPath}`);
     }
     
-    return '/uploads/covers/default-book-cover.jpg';
+    return '/uploads/covers/no-image.png';
   } catch (error) {
     console.error(`❌ Error cloning existing cover: ${error.message}`);
     return false;

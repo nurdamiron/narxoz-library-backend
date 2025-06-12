@@ -112,6 +112,7 @@ module.exports = (sequelize, DataTypes) => {
     image: {
       type: DataTypes.STRING(255),
       allowNull: true,
+      defaultValue: '/uploads/covers/no-image.png'
     },
     imageStoredLocally: {
       type: DataTypes.BOOLEAN,

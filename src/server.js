@@ -339,7 +339,7 @@ app.get('/api/book-cover-debug/:filename', (req, res) => {
       }
       
       // Отправляем перенаправление на локальную заглушку
-      return res.redirect('/uploads/covers/default-book-cover.jpg');
+      return res.redirect('/uploads/covers/no-image.png');
     }
     
     // Получаем информацию о файле
@@ -372,7 +372,7 @@ app.get('/api/book-cover-debug/:filename', (req, res) => {
     console.error(`❌ Ошибка при отдаче обложки: ${error.message}`);
     
     // В случае ошибки перенаправляем на локальную заглушку
-    res.redirect('/uploads/covers/default-book-cover.jpg');
+    res.redirect('/uploads/covers/no-image.png');
   }
 });
 

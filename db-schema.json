@@ -104,7 +104,7 @@
         "type": "varchar(255)",
         "nullable": true,
         "key": "",
-        "default": "/uploads/covers/default-book-cover.jpg",
+        "default": "/uploads/covers/no-image.png",
         "extra": ""
       },
       {

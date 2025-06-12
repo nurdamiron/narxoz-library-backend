@@ -523,7 +523,7 @@ exports.uploadBookCover = async (req, res, next) => {
 
         // Ескі мұқаба файлын жою (әдепкіден басқа)
         const oldCover = book.cover;
-        if (oldCover && !oldCover.includes('default-book-cover') && oldCover.startsWith('/uploads/')) {
+        if (oldCover && !oldCover.includes('no-image') && oldCover.startsWith('/uploads/')) {
           const oldCoverPath = path.join(__dirname, '../../public', oldCover);
           if (fs.existsSync(oldCoverPath)) {
             fs.unlinkSync(oldCoverPath);
